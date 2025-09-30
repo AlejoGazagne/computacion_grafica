@@ -1,0 +1,68 @@
+INC_DIRS ?=
+INC_FLAGS =
+
+ifneq "$(strip $(INC_DIRS))" ""
+INC_FLAGS = \
+$(addprefix -I,$(INC_DIRS))
+endif
+
+USERCPPFLAGS ?= -O2 -Wall
+
+CXXFLAGS = -std=c++17
+CPPFLAGS = $(USERCPPFLAGS) $(INC_FLAGS)
+ifeq ($(OS), Windows_NT)
+    LDFLAGS = -L/mingw64/lib -lglfw3 -lopengl32 -lgdi32 -lpthread -lstdc++ -lm
+else
+LDFLAGS = -lglfw -lGL -lX11 -lpthread -lXrandr -ldl -lstdc++ -lm
+endif
+
+PROJECT_NAME ?= OpenGLApp
+MAIN_CXX ?= main
+GLAD_CXX ?= glad
+ADDITIONAL_OBJS ?=
+OBJ_LIST ?= $(BUILD_DIR)/$(GLAD_CXX).o $(BUILD_DIR)/$(MAIN_CXX).o $(ADDITIONAL_OBJS)
+
+BUILD_DIR ?= build
+SRC_DIR ?= .
+LIB_DIRS ?=
+
+VPATH = $(LIB_DIRS) $(SRC_DIR)
+
+# Configure Libraries objects lists
+LIB_C_SRC = $(foreach ld,$(LIB_DIRS),$(wildcard $(ld)/*.c))
+LIB_CXX_SRC = $(foreach ld,$(LIB_DIRS),$(wildcard $(ld)/*.cpp))
+LIB_SRC = $(LIB_C_SRC) $(LIB_CXX_SRC)
+ifneq "$(strip $(LIB_C_SRC) $(LIB_CXX_SRC))" ""
+LIB_C_OBJ = $(patsubst %.c,$(BUILD_DIR)/%.o,$(notdir $(LIB_C_SRC)))
+LIB_CXX_OBJ = $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(notdir $(LIB_CXX_SRC)))
+LIB_OBJ = $(LIB_C_OBJ) $(LIB_CXX_OBJ)
+LIB_LIB = library
+LIB_AR = $(BUILD_DIR)/lib$(LIB_LIB).a
+LIB_AR_OBJ = $(LIB_AR)($(LIB_C_OBJ) $(LIB_CXX_OBJ))
+LIB_LD_FLAG = -l$(LIB_LIB)
+endif
+
+$(BUILD_DIR)/$(PROJECT_NAME): $(LIB_OBJ) $(OBJ_LIST)
+	$(CXX) -L$(BUILD_DIR) $(LIB_OBJ) $(OBJ_LIST) -o $@ $(LDFLAGS) $(LDLIBS)
+
+.PHONY: build run clean
+
+build: $(BUILD_DIR)/$(PROJECT_NAME)
+
+run: build
+	@echo "Running " $(BUILD_DIR)/$(PROJECT_NAME)
+	@./$(BUILD_DIR)/$(PROJECT_NAME)
+
+clean:
+	find ./$(BUILD_DIR) -type f -name "*.o" -delete
+	rm -f ./$(BUILD_DIR)/$(PROJECT_NAME)
+
+$(BUILD_DIR)/%.o : %.c
+	@mkdir -p $(dir $@)
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+$(BUILD_DIR)/%.o : %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) $< -o $@
+
+print-% : ; @echo $* = $($*)
