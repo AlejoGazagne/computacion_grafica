@@ -32,6 +32,7 @@ CAMERA_CXX = scene/camera
 TERRAIN_CXX = scene/terrain
 INPUT_MANAGER_CXX = input/input_manager
 BANK_ANGLE_CXX = ui/bank_angle
+PITCH_LADDER_CXX = ui/pitch_ladder
 TEXT_RENDERER_CXX = ui/text_renderer
 
 # Lista de objetos adicionales
@@ -46,6 +47,7 @@ ADDITIONAL_OBJS = \
 	$(BUILD_DIR)/$(TERRAIN_CXX).o \
 	$(BUILD_DIR)/$(INPUT_MANAGER_CXX).o \
 	$(BUILD_DIR)/$(BANK_ANGLE_CXX).o \
+	$(BUILD_DIR)/$(PITCH_LADDER_CXX).o \
 	$(BUILD_DIR)/$(TEXT_RENDERER_CXX).o# Compile with debug symbols
 USERCPPFLAGS = -g -Wall -Wextra
 

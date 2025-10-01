@@ -31,6 +31,7 @@
 
 // UI System
 #include "ui/bank_angle.h"
+#include "ui/pitch_ladder.h"
 
 // GLM
 #include <glm/glm.hpp>
@@ -63,6 +64,7 @@ private:
     
     // UI Systems
     std::unique_ptr<BankAngleIndicator> bank_angle_indicator_;
+    std::unique_ptr<PitchLadder> pitch_ladder_;
     
     // Application State
     struct AppState {
@@ -71,7 +73,7 @@ private:
         bool running = true;
         float delta_time = 0.0f;
         float last_frame = 0.0f;
-        int terrain_size = 0;  // 0=flight_sim, 1=default, 2=large, 3=infinite
+        int terrain_size = 3;  // 0=flight_sim, 1=default, 2=large, 3=infinite
     } app_state_;
     
     // Input State (para evitar repetición de teclas)
@@ -104,6 +106,9 @@ public:
         // Actualizar HUD
         if (bank_angle_indicator_) {
             bank_angle_indicator_->updateScreenSize(width, height);
+        }
+        if (pitch_ladder_) {
+            pitch_ladder_->updateScreenSize(width, height);
         }
     }
     
@@ -333,7 +338,15 @@ private:
             return false;
         }
         
-        std::cout << "Bank Angle HUD initialized successfully" << std::endl;
+        // Crear pitch ladder
+        pitch_ladder_ = std::make_unique<PitchLadder>(width, height);
+        
+        if (!pitch_ladder_->isInitialized()) {
+            std::cerr << "Failed to initialize Pitch Ladder HUD" << std::endl;
+            return false;
+        }
+        
+        std::cout << "Bank Angle HUD and Pitch Ladder initialized successfully" << std::endl;
         return true;
     }
     
@@ -554,7 +567,7 @@ private:
         
         shader->unuse();
         
-        // Renderizar indicador de bank angle (encima de todo)
+        // Renderizar HUD (encima de todo)
         if (bank_angle_indicator_ && bank_angle_indicator_->isInitialized()) {
             float roll_angle = camera->getRoll();
             
@@ -565,6 +578,19 @@ private:
             }
             
             bank_angle_indicator_->render(roll_angle);
+        }
+        
+        // Renderizar pitch ladder
+        if (pitch_ladder_ && pitch_ladder_->isInitialized()) {
+            float pitch_angle = camera->getPitch();
+            
+            // Imprimir el ángulo de pitch para debug (temporal)
+            static int pitch_frame_count = 0;
+            if (++pitch_frame_count % 60 == 0) {  // Cada 60 frames
+                std::cout << "Pitch Angle: " << pitch_angle << "°" << std::endl;
+            }
+            
+            pitch_ladder_->render(pitch_angle);
         }
     }
     

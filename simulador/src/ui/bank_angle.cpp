@@ -39,10 +39,13 @@ namespace UI {
 
         glBindVertexArray(VAO_);
         glBindBuffer(GL_ARRAY_BUFFER, VBO_);
+        
+        // Reservar buffer vacío inicial
+        glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
 
         // Configurar atributo de posición
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
 
         glBindVertexArray(0);
 
@@ -80,6 +83,9 @@ namespace UI {
         
         // Usar el ángulo normalizado para todos los cálculos
         float display_angle = normalized_angle;
+
+        // Guardar estado GL
+        GLboolean depthWasEnabled = glIsEnabled(GL_DEPTH_TEST);
 
         // Configurar OpenGL para renderizado 2D
         glDisable(GL_DEPTH_TEST);
@@ -125,7 +131,8 @@ namespace UI {
             
             // Posición a lo largo de la línea inclinada basada en la diferencia de ángulos
             float angle_diff = line_angle - display_angle;
-            float t = 0.5f - (angle_diff / degrees_per_line) * (line_spacing / 0.4f);  // Normalizar al ancho total
+            // Cambiar de resta a suma para que el movimiento sea en la misma dirección
+            float t = 0.5f + (angle_diff / degrees_per_line) * (line_spacing / 0.4f);  // Normalizar al ancho total
             
             // Solo dibujar líneas que estén dentro del rango visible de la línea base
             if (t >= 0.0f && t <= 1.0f) {
@@ -144,6 +151,7 @@ namespace UI {
                     line_x, line_y + mark_height/2
                 };
                 
+                glBindBuffer(GL_ARRAY_BUFFER, VBO_);
                 glBufferData(GL_ARRAY_BUFFER, mark.size() * sizeof(float), mark.data(), GL_DYNAMIC_DRAW);
                 glDrawArrays(GL_LINES, 0, 2);
                 
@@ -157,6 +165,7 @@ namespace UI {
                     );
                     
                     if (!text_vertices.empty()) {
+                        glBindBuffer(GL_ARRAY_BUFFER, VBO_);
                         glBufferData(GL_ARRAY_BUFFER, text_vertices.size() * sizeof(float), 
                                    text_vertices.data(), GL_DYNAMIC_DRAW);
                         glDrawArrays(GL_LINES, 0, text_vertices.size() / 2);
@@ -192,13 +201,14 @@ namespace UI {
             base_x2, base_y2   // Base derecha
         };
         
+        glBindBuffer(GL_ARRAY_BUFFER, VBO_);
         glBufferData(GL_ARRAY_BUFFER, needle.size() * sizeof(float), needle.data(), GL_DYNAMIC_DRAW);
         glDrawArrays(GL_LINE_LOOP, 0, 3);  // Triángulo hueco usando LINE_LOOP
 
         // Restaurar estado OpenGL
         glBindVertexArray(0);
         glUseProgram(0);
-        glEnable(GL_DEPTH_TEST);
+        if (depthWasEnabled) glEnable(GL_DEPTH_TEST);
         glDisable(GL_BLEND);
     }
 

@@ -33,7 +33,7 @@ namespace UI {
 
 
     public:
-        BankAngleIndicator(int width, int height, const std::string& shader_name = "hud_shader");
+        BankAngleIndicator(int width, int height, const std::string& shader_name = "bank_angle_shader");
         ~BankAngleIndicator();
         
         void updateScreenSize(int width, int height);
