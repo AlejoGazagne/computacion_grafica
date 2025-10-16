@@ -8,29 +8,116 @@ in vec2 TexCoords;
 
 uniform sampler2D ourTexture;
 uniform bool useTexture;
+uniform vec3 viewPos;  // Posición de la cámara para calcular distancia
 
-void main() {
-    // Iluminación básica
-    vec3 lightPos = vec3(5.0, 5.0, 5.0);
-    vec3 lightColor = vec3(1.0, 1.0, 1.0);
+// Niebla
+uniform bool fogEnabled = true;
+uniform float fogDensity = 0.05;
+uniform vec3 fogColor = vec3(0.7, 0.8, 0.9);  // Color azul grisáceo
+
+// Luz direccional (sol)
+struct DirLight {
+    vec3 direction;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    bool enabled;
+};
+uniform DirLight dirLight;
+
+// Luz puntual (hasta 4)
+struct PointLight {
+    vec3 position;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float constant;
+    float linear;
+    float quadratic;
+    bool enabled;
+};
+#define MAX_POINT_LIGHTS 4
+uniform PointLight pointLights[MAX_POINT_LIGHTS];
+uniform int numPointLights;
+
+// Propiedades del material
+uniform float shininess = 32.0;
+
+// Función para calcular luz direccional
+vec3 CalcDirLight(DirLight light, vec3 normal, vec3 baseColor) {
+    if (!light.enabled) return vec3(0.0);
     
-    vec3 norm = normalize(Normal);
-    vec3 lightDir = normalize(lightPos - FragPos);
+    vec3 lightDir = normalize(-light.direction);
+    
+    // Ambient - luz base para que todo sea visible
+    vec3 ambient = light.ambient * baseColor;
+    
+    // Diffuse - iluminación simple basada en el ángulo
+    float diff = max(dot(normal, lightDir), 0.0);
+    vec3 diffuse = light.diffuse * diff * baseColor;
+    
+    return ambient + diffuse;
+}
+
+// Función para calcular luz puntual
+vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 baseColor) {
+    if (!light.enabled) return vec3(0.0);
+    
+    vec3 lightDir = normalize(light.position - fragPos);
     
     // Ambient
-    float ambientStrength = 0.3;
-    vec3 ambient = ambientStrength * lightColor;
+    vec3 ambient = light.ambient * baseColor;
     
     // Diffuse
-    float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = diff * lightColor;
+    float diff = max(dot(normal, lightDir), 0.0);
+    vec3 diffuse = light.diffuse * diff * baseColor;
     
-    vec3 lighting = ambient + diffuse;
+    // Atenuación
+    float distance = length(light.position - fragPos);
+    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+    
+    ambient *= attenuation;
+    diffuse *= attenuation;
+    
+    return ambient + diffuse;
+}
+
+void main() {
+    vec3 norm = normalize(Normal);
+    
+    // Obtener color base
+    vec3 baseColor;
+    float alpha = 1.0;
     
     if (useTexture) {
         vec4 texColor = texture(ourTexture, TexCoords);
-        FragColor = vec4(lighting * texColor.rgb, texColor.a);
+        baseColor = texColor.rgb;
+        alpha = texColor.a;
     } else {
-        FragColor = vec4(lighting * ourColor, 1.0);
+        baseColor = ourColor;
     }
+    
+    // Calcular iluminación
+    vec3 result = vec3(0.0);
+    
+    // Luz direccional (sol)
+    result += CalcDirLight(dirLight, norm, baseColor);
+    
+    // Luces puntuales
+    for (int i = 0; i < numPointLights && i < MAX_POINT_LIGHTS; i++) {
+        result += CalcPointLight(pointLights[i], norm, FragPos, baseColor);
+    }
+    
+    // Clamp para evitar saturación
+    result = clamp(result, 0.0, 1.0);
+    
+    // Aplicar niebla
+    if (fogEnabled) {
+        float distance = length(viewPos - FragPos);
+        float fogFactor = exp(-pow(distance * fogDensity, 1.6));
+        fogFactor = clamp(fogFactor, 0.0, 1.0);
+        result = mix(fogColor, result, fogFactor);
+    }
+    
+    FragColor = vec4(result, alpha);
 }

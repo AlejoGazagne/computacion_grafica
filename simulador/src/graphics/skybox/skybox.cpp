@@ -1,4 +1,5 @@
 #include "skybox.h"
+#include "../shaders/shader_manager.h"
 #include <stb_image.h>
 #include <iostream>
 #include <filesystem>
@@ -54,7 +55,7 @@ namespace Graphics {
         };
 
         Skybox::Skybox() 
-            : VAO_(0), VBO_(0), texture_id_(0), shader_program_(0), initialized_(false) {
+            : VAO_(0), VBO_(0), texture_id_(0), initialized_(false), shader_name_("skybox") {
         }
 
         Skybox::~Skybox() {
@@ -63,11 +64,10 @@ namespace Graphics {
 
         Skybox::Skybox(Skybox&& other) noexcept 
             : VAO_(other.VAO_), VBO_(other.VBO_), texture_id_(other.texture_id_), 
-              shader_program_(other.shader_program_), initialized_(other.initialized_) {
+              initialized_(other.initialized_), shader_name_(std::move(other.shader_name_)) {
             other.VAO_ = 0;
             other.VBO_ = 0;
             other.texture_id_ = 0;
-            other.shader_program_ = 0;
             other.initialized_ = false;
         }
 
@@ -78,13 +78,12 @@ namespace Graphics {
                 VAO_ = other.VAO_;
                 VBO_ = other.VBO_;
                 texture_id_ = other.texture_id_;
-                shader_program_ = other.shader_program_;
                 initialized_ = other.initialized_;
+                shader_name_ = std::move(other.shader_name_);
                 
                 other.VAO_ = 0;
                 other.VBO_ = 0;
                 other.texture_id_ = 0;
-                other.shader_program_ = 0;
                 other.initialized_ = false;
             }
             return *this;
@@ -111,8 +110,14 @@ namespace Graphics {
             // Setup mesh
             setupMesh();
             
-            // Setup shader
-            setupShader();
+            // Cargar shader usando ShaderManager
+            auto& shader_manager = Shaders::ShaderManager::getInstance();
+            if (!shader_manager.loadShader(shader_name_, 
+                                          "shaders/vertex_skybox.glsl", 
+                                          "shaders/fragment_skybox.glsl")) {
+                std::cerr << "Failed to load skybox shader!" << std::endl;
+                return false;
+            }
 
             initialized_ = true;
             std::cout << "Skybox initialized successfully" << std::endl;
@@ -166,96 +171,38 @@ namespace Graphics {
             glBindVertexArray(0);
         }
 
-        void Skybox::setupShader() {
-            const char* vertex_shader_source = R"(
-                #version 330 core
-                layout (location = 0) in vec3 aPos;
-
-                out vec3 TexCoords;
-
-                uniform mat4 projection;
-                uniform mat4 view;
-
-                void main() {
-                    TexCoords = aPos;
-                    vec4 pos = projection * view * vec4(aPos, 1.0);
-                    gl_Position = pos.xyww;
-                }
-            )";
-
-            const char* fragment_shader_source = R"(
-                #version 330 core
-                out vec4 FragColor;
-
-                in vec3 TexCoords;
-
-                uniform samplerCube skybox;
-
-                void main() {    
-                    FragColor = texture(skybox, TexCoords);
-                }
-            )";
-
-            // Compilar vertex shader
-            GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-            glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
-            glCompileShader(vertex_shader);
-
-            // Verificar compilación
-            int success;
-            char infoLog[512];
-            glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
-            if (!success) {
-                glGetShaderInfoLog(vertex_shader, 512, NULL, infoLog);
-                std::cerr << "Skybox vertex shader compilation failed: " << infoLog << std::endl;
-            }
-
-            // Compilar fragment shader
-            GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-            glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
-            glCompileShader(fragment_shader);
-
-            glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
-            if (!success) {
-                glGetShaderInfoLog(fragment_shader, 512, NULL, infoLog);
-                std::cerr << "Skybox fragment shader compilation failed: " << infoLog << std::endl;
-            }
-
-            // Crear programa
-            shader_program_ = glCreateProgram();
-            glAttachShader(shader_program_, vertex_shader);
-            glAttachShader(shader_program_, fragment_shader);
-            glLinkProgram(shader_program_);
-
-            glGetProgramiv(shader_program_, GL_LINK_STATUS, &success);
-            if (!success) {
-                glGetProgramInfoLog(shader_program_, 512, NULL, infoLog);
-                std::cerr << "Skybox shader program linking failed: " << infoLog << std::endl;
-            }
-
-            glDeleteShader(vertex_shader);
-            glDeleteShader(fragment_shader);
-        }
-
-        void Skybox::render(const glm::mat4& view, const glm::mat4& projection) {
+        void Skybox::render(const glm::mat4& view, const glm::mat4& projection, bool fog_enabled) {
             if (!initialized_) return;
+
+            // Obtener shader del ShaderManager
+            auto& shader_manager = Shaders::ShaderManager::getInstance();
+            Shaders::Shader* shader = shader_manager.getShader(shader_name_);
+            if (!shader) {
+                std::cerr << "Skybox shader not found!" << std::endl;
+                return;
+            }
 
             // Cambiar depth function para que el skybox se dibuje en el fondo
             glDepthFunc(GL_LEQUAL);
             
-            glUseProgram(shader_program_);
+            shader->use();
             
             // Remover translación de la matriz view para el skybox
             glm::mat4 skybox_view = glm::mat4(glm::mat3(view));
             
             // Set uniforms
-            glUniformMatrix4fv(glGetUniformLocation(shader_program_, "view"), 1, GL_FALSE, &skybox_view[0][0]);
-            glUniformMatrix4fv(glGetUniformLocation(shader_program_, "projection"), 1, GL_FALSE, &projection[0][0]);
+            shader->setMat4("view", skybox_view);
+            shader->setMat4("projection", projection);
+            
+            // Configurar niebla para el skybox
+            shader->setBool("fogEnabled", fog_enabled);
+            shader->setFloat("fogDensity", 0.05f);
+            shader->setVec3("fogColor", glm::vec3(0.7f, 0.8f, 0.9f));
             
             // Bind skybox texture
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_CUBE_MAP, texture_id_);
-            glUniform1i(glGetUniformLocation(shader_program_, "skybox"), 0);
+            shader->setInt("skybox", 0);
             
             // Render skybox cube
             glBindVertexArray(VAO_);
@@ -278,10 +225,6 @@ namespace Graphics {
             if (texture_id_) {
                 glDeleteTextures(1, &texture_id_);
                 texture_id_ = 0;
-            }
-            if (shader_program_) {
-                glDeleteProgram(shader_program_);
-                shader_program_ = 0;
             }
             initialized_ = false;
         }

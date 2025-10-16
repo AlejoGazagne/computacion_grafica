@@ -44,7 +44,7 @@ namespace Scene {
         float fov = 45.0f;
         float aspect_ratio = 16.0f / 9.0f;
         float near_plane = 0.1f;
-        float far_plane = 100.0f;
+        float far_plane = 100000.0f;  // Far plane extremadamente lejano para terrenos masivos
         
         // Configuración de movimiento
         float movement_speed = 2.5f;

@@ -1,4 +1,5 @@
 #include "terrain.h"
+#include "../utils/perlin_noise.h"
 #include <iostream>
 #include <cmath>
 #include <glad/glad.h>
@@ -68,6 +69,9 @@ namespace Scene {
     void Terrain::generateVertices() {
         vertices_.clear();
         
+        // Crear generador de Perlin Noise si está habilitado
+        Utils::PerlinNoise perlin(config_.noise_seed);
+        
         // Calcular el paso entre vértices
         float x_step = config_.width / static_cast<float>(config_.width_segments);
         float z_step = config_.depth / static_cast<float>(config_.depth_segments);
@@ -80,28 +84,66 @@ namespace Scene {
         float start_x = -config_.width * 0.5f;
         float start_z = -config_.depth * 0.5f;
         
-        // Generar vértices
+        // Vector para almacenar las alturas (necesario para calcular normales correctamente)
+        std::vector<std::vector<float>> heights(config_.depth_segments + 1, 
+                                                 std::vector<float>(config_.width_segments + 1));
+        
+        // Primera pasada: Calcular alturas con Perlin Noise
+        for (int z = 0; z <= config_.depth_segments; ++z) {
+            for (int x = 0; x <= config_.width_segments; ++x) {
+                float pos_x = start_x + x * x_step;
+                float pos_z = start_z + z * z_step;
+                
+                // Calcular altura usando Perlin Noise
+                float height = config_.y_position;
+                if (config_.use_perlin_noise) {
+                    height = config_.y_position + perlin.getTerrainHeight(
+                        pos_x, pos_z, 
+                        config_.noise_scale, 
+                        config_.height_multiplier, 
+                        config_.noise_octaves
+                    );
+                }
+                
+                heights[z][x] = height;
+            }
+        }
+        
+        // Segunda pasada: Generar vértices con normales calculadas correctamente
         for (int z = 0; z <= config_.depth_segments; ++z) {
             for (int x = 0; x <= config_.width_segments; ++x) {
                 // Posición del vértice
                 float pos_x = start_x + x * x_step;
-                float pos_y = config_.y_position;
+                float pos_y = heights[z][x];
                 float pos_z = start_z + z * z_step;
                 
                 // Coordenadas de textura
                 float u = x * u_step;
                 float v = z * v_step;
                 
-                // Normal (siempre apuntando hacia arriba para un terreno plano)
-                float nx = 0.0f;
-                float ny = 1.0f;
-                float nz = 0.0f;
+                // Calcular normal usando diferencias finitas (método del producto cruz)
+                glm::vec3 normal(0.0f, 1.0f, 0.0f);
+                
+                if (config_.use_perlin_noise) {
+                    // Obtener alturas de vértices vecinos para calcular la normal
+                    float hL = (x > 0) ? heights[z][x - 1] : pos_y;
+                    float hR = (x < config_.width_segments) ? heights[z][x + 1] : pos_y;
+                    float hD = (z > 0) ? heights[z - 1][x] : pos_y;
+                    float hU = (z < config_.depth_segments) ? heights[z + 1][x] : pos_y;
+                    
+                    // Calcular vectores tangentes
+                    glm::vec3 tangent_x(2.0f * x_step, hR - hL, 0.0f);
+                    glm::vec3 tangent_z(0.0f, hU - hD, 2.0f * z_step);
+                    
+                    // Normal es el producto cruz de los tangentes
+                    normal = glm::normalize(glm::cross(tangent_z, tangent_x));
+                }
                 
                 // Agregar vértice: posición, normal, coordenadas de textura
                 vertices_.insert(vertices_.end(), {
-                    pos_x, pos_y, pos_z,  // posición
-                    nx, ny, nz,            // normal  
-                    u, v                   // coordenadas de textura
+                    pos_x, pos_y, pos_z,     // posición
+                    normal.x, normal.y, normal.z,  // normal  
+                    u, v                      // coordenadas de textura
                 });
             }
         }
@@ -112,7 +154,10 @@ namespace Scene {
     void Terrain::generateIndices() {
         indices_.clear();
         
-        // Generar índices para triángulos
+        // Usar GL_TRIANGLES con índices compartidos (más simple y sin artefactos)
+        // Cada quad (cuadrado) se divide en 2 triángulos
+        // Los vértices se reutilizan automáticamente gracias a EBO
+        
         for (int z = 0; z < config_.depth_segments; ++z) {
             for (int x = 0; x < config_.width_segments; ++x) {
                 // Calcular índices de los cuatro vértices del quad
@@ -122,22 +167,28 @@ namespace Scene {
                 int bottom_right = bottom_left + 1;
                 
                 // Primer triángulo (top_left, bottom_left, top_right)
-                indices_.insert(indices_.end(), {
-                    static_cast<unsigned int>(top_left),
-                    static_cast<unsigned int>(bottom_left),
-                    static_cast<unsigned int>(top_right)
-                });
+                indices_.push_back(static_cast<unsigned int>(top_left));
+                indices_.push_back(static_cast<unsigned int>(bottom_left));
+                indices_.push_back(static_cast<unsigned int>(top_right));
                 
                 // Segundo triángulo (top_right, bottom_left, bottom_right)
-                indices_.insert(indices_.end(), {
-                    static_cast<unsigned int>(top_right),
-                    static_cast<unsigned int>(bottom_left),
-                    static_cast<unsigned int>(bottom_right)
-                });
+                indices_.push_back(static_cast<unsigned int>(top_right));
+                indices_.push_back(static_cast<unsigned int>(bottom_left));
+                indices_.push_back(static_cast<unsigned int>(bottom_right));
             }
         }
         
         index_count_ = indices_.size();
+        
+        // Información de optimización
+        int vertices_total = (config_.width_segments + 1) * (config_.depth_segments + 1);
+        int triangles = config_.width_segments * config_.depth_segments * 2;
+        
+        std::cout << "Terrain mesh info:" << std::endl;
+        std::cout << "  Vertices: " << vertices_total << std::endl;
+        std::cout << "  Triangles: " << triangles << std::endl;
+        std::cout << "  Indices: " << index_count_ << std::endl;
+        std::cout << "  Vertex reuse: " << static_cast<float>(index_count_) / vertices_total << "x" << std::endl;
     }
 
     void Terrain::setupBuffers() {
@@ -199,59 +250,24 @@ namespace Scene {
         index_count_ = 0;
     }
 
-    // Factory implementations
-    std::unique_ptr<Terrain> TerrainFactory::createSmall(const std::string& name) {
-        auto terrain = std::make_unique<Terrain>(name);
-        auto config = TerrainConfig::createSmall();
-        
-        if (!terrain->initialize(config)) {
-            return nullptr;
+    float Terrain::getHeightAt(float x, float z) const {
+        // Si no usa Perlin Noise, devolver altura base
+        if (!config_.use_perlin_noise) {
+            return config_.y_position;
         }
         
-        return terrain;
-    }
-
-    std::unique_ptr<Terrain> TerrainFactory::createFlat(const std::string& name) {
-        auto terrain = std::make_unique<Terrain>(name);
-        auto config = TerrainConfig::createDefault();
+        // Recrear el generador de Perlin Noise con la misma semilla
+        Utils::PerlinNoise perlin(config_.noise_seed);
         
-        if (!terrain->initialize(config)) {
-            return nullptr;
-        }
+        // Calcular altura usando los mismos parámetros que en la generación
+        float height = config_.y_position + perlin.getTerrainHeight(
+            x, z,
+            config_.noise_scale,
+            config_.height_multiplier,
+            config_.noise_octaves
+        );
         
-        return terrain;
-    }
-
-    std::unique_ptr<Terrain> TerrainFactory::createLarge(const std::string& name) {
-        auto terrain = std::make_unique<Terrain>(name);
-        auto config = TerrainConfig::createLarge();
-        
-        if (!terrain->initialize(config)) {
-            return nullptr;
-        }
-        
-        return terrain;
-    }
-    
-    std::unique_ptr<Terrain> TerrainFactory::createInfinite(const std::string& name) {
-        auto terrain = std::make_unique<Terrain>(name);
-        auto config = TerrainConfig::createInfinite();
-        
-        if (!terrain->initialize(config)) {
-            return nullptr;
-        }
-        
-        return terrain;
-    }
-
-    std::unique_ptr<Terrain> TerrainFactory::createCustom(const TerrainConfig& config, const std::string& name) {
-        auto terrain = std::make_unique<Terrain>(name);
-        
-        if (!terrain->initialize(config)) {
-            return nullptr;
-        }
-        
-        return terrain;
+        return height;
     }
 
 } // namespace Scene

@@ -8,48 +8,21 @@
 namespace Scene {
 
     struct TerrainConfig {
-        float width = 200.0f;          // Mucho más grande por defecto
-        float depth = 200.0f;
-        float y_position = -2.0f;      // Posición Y del piso (debajo del cubo)
-        int width_segments = 40;       // Más segmentos para suavidad
-        int depth_segments = 40;
+        float width = 50000.0f;              // Terreno ultra masivo
+        float depth = 50000.0f;
+        float y_position = -2.0f;            // Posición Y del piso
+        int width_segments = 50;            // Segmentos para detalle
+        int depth_segments = 50;
         std::string texture_name = "terrain";
         glm::vec3 color = glm::vec3(0.8f, 0.8f, 0.8f);
-        float texture_repeat = 50.0f;  // Repetir textura muchas veces
+        float texture_repeat = 100.0f;       // Repeticiones de textura
         
-        static TerrainConfig createDefault() {
-            return TerrainConfig{};
-        }
-        
-        static TerrainConfig createSmall() {
-            TerrainConfig config;
-            config.width = 20.0f;
-            config.depth = 20.0f;
-            config.width_segments = 10;
-            config.depth_segments = 10;
-            config.texture_repeat = 4.0f;
-            return config;
-        }
-        
-        static TerrainConfig createLarge() {
-            TerrainConfig config;
-            config.width = 500.0f;       // Muy grande - hasta el horizonte
-            config.depth = 500.0f;
-            config.width_segments = 50;  // Optimizado para distancia
-            config.depth_segments = 50;
-            config.texture_repeat = 100.0f;
-            return config;
-        }
-        
-        static TerrainConfig createInfinite() {
-            TerrainConfig config;
-            config.width = 1000.0f;      // Simula terrain "infinito"
-            config.depth = 1000.0f;
-            config.width_segments = 60;
-            config.depth_segments = 60;
-            config.texture_repeat = 200.0f;
-            return config;
-        }
+        // Configuración de Perlin Noise para relieve
+        bool use_perlin_noise = true;
+        float noise_scale = 0.0003f;         // Escala del ruido
+        float height_multiplier = 800.0f;    // Altura de las montañas
+        int noise_octaves = 7;               // Niveles de detalle
+        unsigned int noise_seed = 237;       // Semilla
     };
 
     class Terrain {
@@ -86,7 +59,7 @@ namespace Scene {
         Terrain& operator=(Terrain&& other) noexcept;
 
         // Initialization
-        bool initialize(const TerrainConfig& config = TerrainConfig::createDefault());
+        bool initialize(const TerrainConfig& config = TerrainConfig{});
         
         // Rendering
         void draw() const;
@@ -98,19 +71,16 @@ namespace Scene {
         unsigned int getIndexCount() const { return index_count_; }
         glm::vec3 getPosition() const { return glm::vec3(0.0f, config_.y_position, 0.0f); }
         
+        // Obtener altura del terreno en una posición (x, z)
+        float getHeightAt(float x, float z) const;
+        
         // Setters
         void setPosition(float y) { config_.y_position = y; }
         void setTextureRepeat(float repeat) { config_.texture_repeat = repeat; }
     };
 
-    // Factory class for terrain creation
-    class TerrainFactory {
-    public:
-        static std::unique_ptr<Terrain> createSmall(const std::string& name = "small_terrain");
-        static std::unique_ptr<Terrain> createFlat(const std::string& name = "flat_terrain");        
-        static std::unique_ptr<Terrain> createLarge(const std::string& name = "large_terrain");
-        static std::unique_ptr<Terrain> createInfinite(const std::string& name = "infinite_terrain");
-        static std::unique_ptr<Terrain> createCustom(const TerrainConfig& config, const std::string& name = "custom_terrain");
-    };
-
 } // namespace Scene
+
+/*
+FastNoiseLite - Noise generation library, usar perlin noise para generar alturas del terreno
+*/

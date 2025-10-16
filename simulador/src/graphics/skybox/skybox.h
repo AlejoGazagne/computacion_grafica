@@ -31,15 +31,14 @@ namespace Graphics {
         private:
             GLuint VAO_, VBO_;
             GLuint texture_id_;
-            GLuint shader_program_;
             bool initialized_;
+            std::string shader_name_;
 
             // Vertices del cubo para el skybox (solo posiciones)
             static const float skybox_vertices_[];
 
             bool loadCubemap(const std::vector<std::string>& faces_paths, bool flip_y = false);
             void setupMesh();
-            void setupShader();
 
         public:
             Skybox();
@@ -54,7 +53,7 @@ namespace Graphics {
             Skybox& operator=(Skybox&& other) noexcept;
 
             bool initialize(const SkyboxConfig& config = SkyboxConfig::createDefault());
-            void render(const glm::mat4& view, const glm::mat4& projection);
+            void render(const glm::mat4& view, const glm::mat4& projection, bool fog_enabled = true);
             void cleanup();
 
             bool isInitialized() const { return initialized_; }

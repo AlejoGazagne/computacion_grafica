@@ -1,7 +1,13 @@
 /**
  * @file main.cpp
  * @brief OpenGL Graphics Engine - Main Application
- * @author Modular Architecture
+    struct AppState {
+        bool wireframe = false;
+        bool use_texture = false;
+        bool running = true;
+        float delta_time = 0.0f;
+        float last_frame = 0.0f;
+    } app_state_;or Modular Architecture
  * @version 2.0
  * 
  * Nueva aplicación principal usando arquitectura modular completa.
@@ -20,6 +26,7 @@
 #include "graphics/textures/texture_manager.h"
 #include "graphics/rendering/buffer_objects.h"
 #include "graphics/skybox/skybox.h"
+#include "graphics/lighting/light_manager.h"
 
 // Scene System
 #include "scene/mesh.h"
@@ -42,6 +49,7 @@ using namespace Graphics::Core;
 using namespace Graphics::Shaders;
 using namespace Graphics::Textures;
 using namespace Graphics::Rendering;
+using namespace Graphics::Lighting;
 using namespace UI;
 using namespace Graphics::Skybox;
 using namespace Scene;
@@ -62,6 +70,9 @@ private:
     std::unique_ptr<Skybox> skybox_;
     std::unique_ptr<Terrain> terrain_;
     
+    // Lighting System
+    std::unique_ptr<LightManager> light_manager_;
+    
     // UI Systems
     std::unique_ptr<BankAngleIndicator> bank_angle_indicator_;
     std::unique_ptr<PitchLadder> pitch_ladder_;
@@ -70,10 +81,11 @@ private:
     struct AppState {
         bool wireframe_mode = false;
         bool use_texture = true;
+        bool fog_enabled = true;
         bool running = true;
         float delta_time = 0.0f;
         float last_frame = 0.0f;
-        int terrain_size = 3;  // 0=flight_sim, 1=default, 2=large, 3=infinite
+        int terrain_size = 3;  // 0=default, 1=large, 2=infinite, 3=ultra_massive, 4=small
     } app_state_;
     
     // Input State (para evitar repetición de teclas)
@@ -82,8 +94,8 @@ private:
         bool t_pressed = false;
         bool r_pressed = false;
         bool e_pressed = false;
+        bool f_pressed = false;
         bool f1_pressed = false;
-        bool p_pressed = false;
     } input_state_;
 
 public:
@@ -109,37 +121,6 @@ public:
         }
         if (pitch_ladder_) {
             pitch_ladder_->updateScreenSize(width, height);
-        }
-    }
-    
-    /**
-     * @brief Cambia el tamaño del terrain
-     */
-    void switchTerrainSize() {
-        app_state_.terrain_size = (app_state_.terrain_size + 1) % 4;
-        
-        // Recrear terrain con nuevo tamaño
-        switch (app_state_.terrain_size) {
-            case 0:
-                // terrain_ = TerrainFactory::createFlightSimulator("main_terrain");
-                std::cout << "Terrain size: Flight Simulator (5000x5000)" << std::endl;
-                break;
-            case 1:
-                terrain_ = TerrainFactory::createFlat("main_terrain");
-                std::cout << "Terrain size: Default (2000x2000)" << std::endl;
-                break;
-            case 2:
-                terrain_ = TerrainFactory::createLarge("main_terrain");
-                std::cout << "Terrain size: Large (500x500)" << std::endl;
-                break;
-            case 3:
-                terrain_ = TerrainFactory::createInfinite("main_terrain");
-                std::cout << "Terrain size: Infinite (1000x1000)" << std::endl;
-                break;
-        }
-        
-        if (!terrain_) {
-            std::cerr << "Failed to recreate terrain!" << std::endl;
         }
     }
 
@@ -257,6 +238,28 @@ private:
             return false;
         }
         
+        // Inicializar sistema de iluminación
+        if (!initializeLighting()) {
+            std::cerr << "Failed to initialize lighting system" << std::endl;
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * @brief Inicializa el sistema de iluminación
+     */
+    bool initializeLighting() {
+        light_manager_ = std::make_unique<LightManager>();
+        
+        // Crear luz solar (luz direccional principal)
+        DirectionalLight sun = DirectionalLight::createSunlight();
+        light_manager_->addDirectionalLight(std::move(sun));
+        
+        std::cout << "Lighting system initialized successfully" << std::endl;
+        std::cout << "  - Directional light (Sun) created" << std::endl;
+        
         return true;
     }
     
@@ -288,15 +291,33 @@ private:
             return false;
         }
         
+        // Crear terrain
+        terrain_ = std::make_unique<Terrain>("main_terrain");
+        if (!terrain_->initialize()) {
+            std::cerr << "Failed to create terrain" << std::endl;
+            return false;
+        }
+        
+        // Obtener altura del terreno en el origen (donde queremos el cubo)
+        float terrain_height_at_origin = terrain_->getHeightAt(0.0f, 0.0f);
+        
         // Configurar sistema de cámara
         camera_controller_ = std::make_unique<CameraController>();
         camera_controller_->setWindow(context_->getWindow());
         
-        // Crear cámara principal
+        // Crear cámara principal - POSICIONADA SOBRE EL TERRENO
         auto camera_config = CameraController::getFirstPersonConfig();
-        // Usar posición predeterminada que ya está configurada para ver el cubo
         camera_config.aspect_ratio = static_cast<float>(context_->getConfig().width) / 
                                    static_cast<float>(context_->getConfig().height);
+        
+        // Posicionar cámara sobre el terreno + offset
+        float camera_height_offset = 15.0f;  // Altura extra sobre el terreno
+        float camera_x = 0.0f;
+        float camera_z = 100.0f;  // Un poco atrás del origen
+        float camera_terrain_height = terrain_->getHeightAt(camera_x, camera_z);
+        
+        camera_config.position = glm::vec3(camera_x, camera_terrain_height + camera_height_offset, camera_z);
+        camera_config.target = glm::vec3(0.0f, terrain_height_at_origin + 5.0f, 0.0f);  // Mirar al cubo
         
         auto camera = std::make_unique<Camera>(camera_config);
         camera_controller_->addCamera(std::move(camera));
@@ -312,12 +333,10 @@ private:
             return false;
         }
         
-        // Crear terrain/piso
-        terrain_ = TerrainFactory::createFlat("main_terrain");
-        if (!terrain_) {
-            std::cerr << "Failed to create terrain" << std::endl;
-            return false;
-        }
+        std::cout << "Scene initialized:" << std::endl;
+        std::cout << "  Terrain height at origin: " << terrain_height_at_origin << std::endl;
+        std::cout << "  Camera position: (" << camera_config.position.x << ", " 
+                  << camera_config.position.y << ", " << camera_config.position.z << ")" << std::endl;
         
         return true;
     }
@@ -428,6 +447,17 @@ private:
             input_state_.t_pressed = false;
         }
         
+        // F - Toggle Fog
+        if (input_manager.isKeyPressed(InputManager::KEY_F)) {
+            if (!input_state_.f_pressed) {
+                app_state_.fog_enabled = !app_state_.fog_enabled;
+                std::cout << "Fog: " << (app_state_.fog_enabled ? "ON" : "OFF") << std::endl;
+                input_state_.f_pressed = true;
+            }
+        } else {
+            input_state_.f_pressed = false;
+        }
+        
         // R - Reset Camera
         if (input_manager.isKeyPressed(InputManager::KEY_R)) {
             if (!input_state_.r_pressed) {
@@ -452,16 +482,6 @@ private:
             }
         } else {
             input_state_.e_pressed = false;
-        }
-        
-        // P - Switch Terrain Size
-        if (input_manager.isKeyPressed(InputManager::KEY_P)) {
-            if (!input_state_.p_pressed) {
-                switchTerrainSize();
-                input_state_.p_pressed = true;
-            }
-        } else {
-            input_state_.p_pressed = false;
         }
         
         // F1 - Show/Hide Controls
@@ -499,7 +519,7 @@ private:
         
         // Renderizar skybox primero (debe estar en el fondo)
         if (skybox_) {
-            skybox_->render(camera->getViewMatrix(), camera->getProjectionMatrix());
+            skybox_->render(camera->getViewMatrix(), camera->getProjectionMatrix(), app_state_.fog_enabled);
         }
         
         // Obtener shader y texture manager para objetos normales
@@ -520,6 +540,20 @@ private:
         shader->setMat4("view", camera->getViewMatrix());
         shader->setMat4("projection", camera->getProjectionMatrix());
         shader->setBool("useTexture", app_state_.use_texture);
+        
+        // Configurar posición de la cámara para niebla
+        shader->setVec3("viewPos", camera->getPosition());
+        
+        // Configurar niebla
+        shader->setBool("fogEnabled", app_state_.fog_enabled);
+        shader->setFloat("fogDensity", 0.0001f);
+        // shader->setVec3("fogColor", glm::vec3(0.7f, 0.8f, 0.9f));
+        shader->setVec3("fogColor", glm::vec3(0.85f, 0.90f, 0.95f));
+        
+        // Aplicar sistema de iluminación
+        if (light_manager_) {
+            light_manager_->applyToShader(shader);
+        }
         
         // Renderizar terrain
         if (terrain_) {
@@ -544,7 +578,7 @@ private:
         }
         
         // Renderizar cubo
-        if (cube_mesh_) {
+        if (cube_mesh_ && terrain_) {
             // Configurar textura del cubo
             if (app_state_.use_texture) {
                 Texture* cube_texture = texture_manager.getTexture("container");
@@ -558,8 +592,17 @@ private:
                 }
             }
             
+            // Posicionar el cubo SOBRE el terreno
+            float cube_x = 0.0f;
+            float cube_z = 0.0f;
+            float terrain_height = terrain_->getHeightAt(cube_x, cube_z);
+            float cube_size = 4.0f;  // Tamaño del cubo escalado
+            float cube_y = terrain_height + cube_size;  // Cubo sentado sobre el terreno
+            
             // Configurar matriz modelo para el cubo
             glm::mat4 cube_model = glm::mat4(1.0f);
+            cube_model = glm::translate(cube_model, glm::vec3(cube_x, cube_y, cube_z));
+            cube_model = glm::scale(cube_model, glm::vec3(cube_size));
             shader->setMat4("model", cube_model);
             
             cube_mesh_->draw();
@@ -574,7 +617,7 @@ private:
             // Imprimir el ángulo para debug (temporal)
             static int frame_count = 0;
             if (++frame_count % 60 == 0) {  // Cada 60 frames
-                std::cout << "Bank Angle: " << roll_angle << "°" << std::endl;
+                // std::cout << "Bank Angle: " << roll_angle << "°" << std::endl;
             }
             
             bank_angle_indicator_->render(roll_angle);
@@ -587,7 +630,7 @@ private:
             // Imprimir el ángulo de pitch para debug (temporal)
             static int pitch_frame_count = 0;
             if (++pitch_frame_count % 60 == 0) {  // Cada 60 frames
-                std::cout << "Pitch Angle: " << pitch_angle << "°" << std::endl;
+                // std::cout << "Pitch Angle: " << pitch_angle << "°" << std::endl;
             }
             
             pitch_ladder_->render(pitch_angle);
@@ -639,8 +682,8 @@ private:
         std::cout << "" << std::endl;
         std::cout << "G        : Toggle wireframe" << std::endl;
         std::cout << "T        : Toggle texture" << std::endl;
+        std::cout << "F        : Toggle fog" << std::endl;
         std::cout << "R        : Reset camera" << std::endl;
-        std::cout << "P        : Change terrain size" << std::endl;
         std::cout << "E        : Toggle mouse capture" << std::endl;
         std::cout << "1        : Show controls" << std::endl;
         std::cout << "ESC      : Exit" << std::endl;
@@ -672,3 +715,38 @@ int main() {
     
     return 0;
 }
+
+/*
+para la niebla usar la fución
+float fog_density = 0.05f;
+
+exp(-pow(distance*fog_density, 1.6))
+
+esta lógica la tenemos que hacer en los shaders.
+
+esto tenemos que hacer para que los elementos que tenemos en el modelo, pero queda mal que 
+solamente los elementos del mapa se vea la niebla y el cielo se vea nitido
+para eso tenemos que aplicarle niebla también al skybox a la parte que se acerca al horizonte
+-----------------------------------------------------------------
+Para graficar muchas copias del mismo elemento pero con pequeñas variaciones en las posiciones usamos
+instancing. La idea para este simulador es dibujar muchos arboles en las distintas zonas del mapa
+glDrawElementsInstanced
+
+tener un add_instance_data que haga la instancia de todos lo elementos en el buffer 
+-----------------------------------------------------------------
+para las letras y números con un atlas de letras. Tener una textura con los caracteres que voy a usar
+archivo .font con los datos de el char id , la posición en el archivo para que se saquen y se puedan poner en 
+el cuadrado que se va a dibujar. 
+
+Tener un textMesh con un maximo de caracteres que se pueden dibujar para guardarlo en la memoria y no
+calcular todo el tiempo el buffer.
+
+bill boarding
+-----------------------------------------------------------------
+modelo de la nave Assimp 
+
+-----------------------------------------------------------------
+usar mip maps
+facetado de triangulos color verde
+
+*/

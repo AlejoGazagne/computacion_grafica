@@ -215,3 +215,8 @@ namespace UI {
 
 
 } // namespace UI
+
+/*
+En realidad los parametros de vuelo, como el angulo de bank van a venir de otro lado no van a ser tomados de la cámara
+no se como se van a tomar
+*/

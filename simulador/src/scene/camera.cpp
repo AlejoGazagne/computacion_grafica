@@ -360,12 +360,17 @@ namespace Scene {
     }
 
     void Camera::lookAt(const glm::vec3& target) {
-        glm::vec3 direction = glm::normalize(position_ - target);
+        glm::vec3 direction = glm::normalize(target - position_);  // Dirección HACIA el target
         
+        // Calcular yaw (rotación horizontal)
+        // atan2(z, x) da el ángulo en el plano XZ
         yaw_ = glm::degrees(atan2(direction.z, direction.x));
+        
+        // Calcular pitch (rotación vertical)
         pitch_ = glm::degrees(asin(direction.y));
         
-        // Sin restricciones de pitch para simulador de vuelo
+        // Asegurar que pitch esté en el rango válido
+        pitch_ = glm::clamp(pitch_, -89.0f, 89.0f);
         
         updateCameraVectors();
     }
@@ -520,11 +525,12 @@ namespace Scene {
     // Configuraciones por defecto
     CameraConfig CameraController::getFirstPersonConfig() {
         CameraConfig config;
-        config.position = glm::vec3(0.0f, 0.0f, 2.5f);  // Más cerca del cubo para mejor vista frontal
-        config.target = glm::vec3(0.0f, 0.0f, 0.0f);
+        config.position = glm::vec3(0.0f, 5.0f, 10.0f);  // Posición elevada y alejada para ver el cubo y terreno
+        config.target = glm::vec3(0.0f, 0.0f, 0.0f);  // Mirar al origen (donde está el cubo)
         config.type = CameraType::FIRST_PERSON;
-        config.movement_speed = 5.0f;
+        config.movement_speed = 50.0f;  // Velocidad más rápida para navegar el terreno grande
         config.mouse_sensitivity = 0.05f;  // Sensibilidad reducida para movimiento más suave
+        config.far_plane = 100000.0f;  // Far plane extremadamente lejano
         return config;
     }
 
