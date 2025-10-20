@@ -41,6 +41,7 @@
 #include "input/input_manager.h"
 
 // UI System
+#include "ui/hud.h"
 #include "ui/bank_angle.h"
 #include "ui/pitch_ladder.h"
 
@@ -81,8 +82,10 @@ private:
     std::unique_ptr<LightManager> light_manager_;
 
     // UI Systems
-    std::unique_ptr<BankAngleIndicator> bank_angle_indicator_;
-    std::unique_ptr<PitchLadder> pitch_ladder_;
+    UI::HUD hud_;
+    // Referencias no propietarias para acceso rápido a instrumentos específicos
+    UI::BankAngleIndicator *bank_angle_indicator_;
+    UI::PitchLadder *pitch_ladder_;
 
     enum class CameraMode
     {
@@ -180,15 +183,8 @@ public:
             }
         }
 
-        // Actualizar HUD
-        if (bank_angle_indicator_)
-        {
-            bank_angle_indicator_->updateScreenSize(width, height);
-        }
-        if (pitch_ladder_)
-        {
-            pitch_ladder_->updateScreenSize(width, height);
-        }
+        // Actualizar HUD - propaga el cambio de tamaño a todos los instrumentos
+        hud_.updateScreenSize(width, height);
     }
 
     /**
@@ -512,25 +508,25 @@ private:
         int width, height;
         glfwGetWindowSize(context_->getWindow(), &width, &height);
 
-        // Crear indicador de bank angle
-        bank_angle_indicator_ = std::make_unique<BankAngleIndicator>(width, height);
+        // Crear Bank Angle Indicator
+        auto bank_indicator = std::make_unique<BankAngleIndicator>(width, height);
+        bank_angle_indicator_ = bank_indicator.get(); // Guardar referencia antes de mover
+        hud_.addInstrument(std::move(bank_indicator));
 
-        if (!bank_angle_indicator_->isInitialized())
+        // Crear Pitch Ladder
+        auto pitch_ladder = std::make_unique<PitchLadder>(width, height);
+        pitch_ladder_ = pitch_ladder.get(); // Guardar referencia antes de mover
+        hud_.addInstrument(std::move(pitch_ladder));
+
+        // Verificar que todos los instrumentos del HUD estén listos
+        if (!hud_.allInstrumentsReady())
         {
-            std::cerr << "Failed to initialize Bank Angle HUD" << std::endl;
+            std::cerr << "Failed to initialize HUD instruments" << std::endl;
             return false;
         }
 
-        // Crear pitch ladder
-        pitch_ladder_ = std::make_unique<PitchLadder>(width, height);
-
-        if (!pitch_ladder_->isInitialized())
-        {
-            std::cerr << "Failed to initialize Pitch Ladder HUD" << std::endl;
-            return false;
-        }
-
-        std::cout << "Bank Angle HUD and Pitch Ladder initialized successfully" << std::endl;
+        std::cout << "HUD System initialized successfully with "
+                  << hud_.getInstrumentCount() << " instruments" << std::endl;
         return true;
     }
 
@@ -978,14 +974,14 @@ private:
             terrain_shader->setFloat("fogDensity", 0.0001f);
             terrain_shader->setVec3("fogColor", glm::vec3(0.85f, 0.90f, 0.95f));
 
-            // Configurar iluminación (solo para shader textured)
+            // Configurar iluminación
             if (app_state_.use_textured_terrain)
             {
                 light_manager_->applyToShader(terrain_shader);
             }
             else
             {
-                // Para terreno facetado, solo configurar luz direccional manualmente
+                // Para terreno verde simple, configurar luz direccional
                 if (light_manager_->getMainLight())
                 {
                     auto main_light = light_manager_->getMainLight();
@@ -1117,17 +1113,21 @@ private:
 
         if (app_state_.camera_mode == CameraMode::FIRST_PERSON)
         {
-            if (bank_angle_indicator_ && bank_angle_indicator_->isInitialized())
+            // Actualizar datos de los instrumentos antes de renderizar
+            if (bank_angle_indicator_)
             {
                 float roll_angle = camera->getRoll();
-                bank_angle_indicator_->render(roll_angle);
+                bank_angle_indicator_->setBankAngle(roll_angle);
             }
 
-            if (pitch_ladder_ && pitch_ladder_->isInitialized())
+            if (pitch_ladder_)
             {
                 float pitch_angle = camera->getPitch();
-                pitch_ladder_->render(pitch_angle);
+                pitch_ladder_->setPitch(pitch_angle);
             }
+
+            // Renderizar todo el HUD de una vez
+            hud_.render();
         }
     }
 
