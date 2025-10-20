@@ -36,6 +36,7 @@
 #include "scene/model.h"
 #include "scene/instancing.h"
 #include "utils/obj_loader.h"
+#include "utils/assimp_loader.h"
 
 // Input System
 #include "input/input_manager.h"
@@ -467,23 +468,27 @@ private:
             }
         }
 
-        // Cargar avión
-        plane_model_ = std::make_unique<Model>("player_plane");
+        // Cargar avión usando Assimp con color gris uniforme
         {
-            auto plane_data = ::Utils::OBJLoader::loadOBJ("textures/plane/Jet_Lowpoly.obj");
-            if (!plane_data.vertices.empty())
+            glm::vec3 grayColor(0.5f, 0.5f, 0.5f); // Color gris
+            plane_model_ = ::Utils::AssimpLoader::loadModel(
+                "textures/plane/Jet_Lowpoly.obj", 
+                grayColor
+            );
+            
+            if (plane_model_)
             {
-                auto plane_mesh = std::make_unique<Mesh>(plane_data.vertices, plane_data.indices, "plane_mesh");
-                plane_model_->addMesh(std::move(plane_mesh));
-
+                // Configurar el color uniforme
+                plane_model_->setUniformColor(grayColor);
+                
                 // Posicionar el avión (seguirá la cámara)
                 plane_model_->getTransform().position = glm::vec3(0.0f, 5.0f, 0.0f);
-                plane_model_->getTransform().scale = glm::vec3(0.5f);
-                std::cout << "Plane model initialized" << std::endl;
+                plane_model_->getTransform().scale = glm::vec3(1.0f);
+                std::cout << "Plane model initialized with Assimp (Gray color)" << std::endl;
             }
             else
             {
-                std::cerr << "Failed to load plane model" << std::endl;
+                std::cerr << "Failed to load plane model with Assimp" << std::endl;
             }
         }
 
@@ -1013,6 +1018,9 @@ private:
                 }
             }
 
+            // Desactivar color uniforme para el terreno
+            terrain_shader->setBool("useUniformColor", false);
+
             // Configurar matriz modelo para el terrain (sin transformaciones)
             glm::mat4 terrain_model = glm::mat4(1.0f);
             terrain_shader->setMat4("model", terrain_model);
@@ -1024,6 +1032,9 @@ private:
         if (tree_model_)
         {
             shader->use();
+            
+            // Desactivar color uniforme para los árboles
+            shader->setBool("useUniformColor", false);
 
             // Posición de prueba del árbol (al lado de la caja)
             float cube_x = 0.0f;
@@ -1069,6 +1080,9 @@ private:
         if (cube_mesh_ && terrain_)
         {
             shader->use();
+            
+            // Desactivar color uniforme para el cubo
+            shader->setBool("useUniformColor", false);
 
             // Configurar textura del cubo
             if (app_state_.use_texture)

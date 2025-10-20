@@ -11,9 +11,9 @@ USERCPPFLAGS ?= -O2 -Wall
 CXXFLAGS = -std=c++17
 CPPFLAGS = $(USERCPPFLAGS) $(INC_FLAGS)
 ifeq ($(OS), Windows_NT)
-    LDFLAGS = -L/mingw64/lib -lglfw3 -lopengl32 -lgdi32 -lpthread -lstdc++ -lm
+    LDFLAGS = -L/mingw64/lib -lglfw3 -lopengl32 -lgdi32 -lpthread -lstdc++ -lm -lassimp
 else
-LDFLAGS = -lglfw -lGL -lX11 -lpthread -lXrandr -ldl -lstdc++ -lm
+LDFLAGS = -lglfw -lGL -lX11 -lpthread -lXrandr -ldl -lstdc++ -lm -lassimp
 endif
 
 PROJECT_NAME ?= OpenGLApp

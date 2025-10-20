@@ -37,6 +37,8 @@ namespace Scene
     Transform transform_;
     std::string name_;
     bool visible_;
+    bool use_uniform_color_;
+    glm::vec3 uniform_color_;
 
   public:
     Model(const std::string &name = "model");
@@ -58,10 +60,18 @@ namespace Scene
     const Transform &getTransform() const { return transform_; }
     bool isVisible() const { return visible_; }
     size_t getMeshCount() const { return meshes_.size(); }
+    bool usesUniformColor() const { return use_uniform_color_; }
+    const glm::vec3 &getUniformColor() const { return uniform_color_; }
 
     // Setters
     Transform &getTransform() { return transform_; }
     void setVisible(bool visible) { visible_ = visible; }
+    void setUniformColor(const glm::vec3 &color) 
+    { 
+      uniform_color_ = color; 
+      use_uniform_color_ = true;
+    }
+    void disableUniformColor() { use_uniform_color_ = false; }
   };
 
 }

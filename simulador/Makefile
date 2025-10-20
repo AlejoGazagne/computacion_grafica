@@ -38,6 +38,7 @@ PITCH_LADDER_CXX = ui/pitch_ladder
 TEXT_RENDERER_CXX = ui/text_renderer
 TEXT_RENDERER_ATLAS_CXX = ui/text_renderer_atlas
 OBJ_LOADER_CXX = utils/obj_loader
+ASSIMP_LOADER_CXX = utils/assimp_loader
 
 # Lista de objetos adicionales
 ADDITIONAL_OBJS = \
@@ -56,7 +57,8 @@ ADDITIONAL_OBJS = \
 	$(BUILD_DIR)/$(PITCH_LADDER_CXX).o \
 	$(BUILD_DIR)/$(TEXT_RENDERER_CXX).o \
 	$(BUILD_DIR)/$(TEXT_RENDERER_ATLAS_CXX).o \
-	$(BUILD_DIR)/$(OBJ_LOADER_CXX).o# Compile with debug symbols
+	$(BUILD_DIR)/$(OBJ_LOADER_CXX).o \
+	$(BUILD_DIR)/$(ASSIMP_LOADER_CXX).o# Compile with debug symbols
 USERCPPFLAGS = -g -Wall -Wextra
 
 include ./Makefile.master
