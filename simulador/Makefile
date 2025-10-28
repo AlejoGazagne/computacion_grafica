@@ -6,12 +6,15 @@ INC_DIRS = \
 	./src/graphics/textures \
 	./src/graphics/rendering \
 	./src/graphics/skybox \
+	./src/graphics/lighting \
 	./src/scene \
 	./src/input \
 	./src/ui \
 	./src/utils \
 	./include \
-	/usr/include/glmLIB_DIRS = \
+	/usr/include/glm
+
+LIB_DIRS = \
 ./include
 
 SRC_DIR = \
@@ -38,11 +41,7 @@ BANK_ANGLE_CXX = ui/bank_angle
 PITCH_LADDER_CXX = ui/pitch_ladder
 TEXT_RENDERER_CXX = ui/text_renderer
 TEXT_RENDERER_ATLAS_CXX = ui/text_renderer_atlas
-<<<<<<< Updated upstream
-OBJ_LOADER_CXX = utils/obj_loader
-=======
 ASSIMP_LOADER_CXX = utils/assimp_loader
->>>>>>> Stashed changes
 
 # Lista de objetos adicionales
 ADDITIONAL_OBJS = \
@@ -62,11 +61,7 @@ ADDITIONAL_OBJS = \
 	$(BUILD_DIR)/$(PITCH_LADDER_CXX).o \
 	$(BUILD_DIR)/$(TEXT_RENDERER_CXX).o \
 	$(BUILD_DIR)/$(TEXT_RENDERER_ATLAS_CXX).o \
-<<<<<<< Updated upstream
-	$(BUILD_DIR)/$(OBJ_LOADER_CXX).o# Compile with debug symbols
-=======
 	$(BUILD_DIR)/$(ASSIMP_LOADER_CXX).o# Compile with debug symbols
->>>>>>> Stashed changes
 USERCPPFLAGS = -g -Wall -Wextra
 
 include ./Makefile.master

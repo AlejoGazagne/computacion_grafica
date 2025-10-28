@@ -34,12 +34,7 @@
 #include "scene/camera.h"
 #include "scene/terrain.h"
 #include "scene/model.h"
-<<<<<<< Updated upstream
-#include "scene/instancing.h"
-#include "utils/obj_loader.h"
-=======
 #include "utils/assimp_loader.h"
->>>>>>> Stashed changes
 
 // Input System
 #include "input/input_manager.h"
@@ -430,65 +425,18 @@ private:
 
         // ===== CARGAR MODELOS =====
 
-<<<<<<< Updated upstream
-        // Cargar árbol con instancing
-        tree_model_ = std::make_unique<Model>("tree_forest");
-        {
-            auto tree_data = ::Utils::OBJLoader::loadOBJ("textures/tree/Tree.obj");
-            if (!tree_data.vertices.empty())
-            {
-                auto tree_mesh = std::make_unique<Mesh>(tree_data.vertices, tree_data.indices, "tree_mesh");
-
-                // Generar instancias de árboles
-                auto instances = InstanceGenerator::generateTreeInstances(
-                    InstanceConfig::TREE_INSTANCE_COUNT,
-                    terrain_->getConfig().width,
-                    terrain_->getConfig().depth,
-                    true, // enable LOD
-                    InstanceConfig::LOD_DISTANCE);
-
-                // Convertir a InstanceAttributes
-                std::vector<InstanceAttributes> inst_attrs;
-                inst_attrs.reserve(instances.size());
-                for (const auto &inst : instances)
-                {
-                    inst_attrs.push_back({inst.position,
-                                          inst.scale,
-                                          inst.rotationY,
-                                          inst.billboard});
-                }
-
-                tree_mesh->setInstanceData(inst_attrs);
-                tree_model_->addMesh(std::move(tree_mesh));
-                std::cout << "Tree model initialized with " << instances.size() << " instances" << std::endl;
-            }
-            else
-            {
-                std::cerr << "Failed to load tree model" << std::endl;
-            }
-        }
-
-        // Cargar avión
-        plane_model_ = std::make_unique<Model>("player_plane");
-=======
         // Cargar avión usando Assimp con color gris uniforme
->>>>>>> Stashed changes
+        plane_model_ = ::Utils::AssimpLoader::loadModel("textures/plane/Jet_Lowpoly.obj");
+        if (plane_model_)
         {
-            auto plane_data = ::Utils::OBJLoader::loadOBJ("textures/plane/Jet_Lowpoly.obj");
-            if (!plane_data.vertices.empty())
-            {
-                auto plane_mesh = std::make_unique<Mesh>(plane_data.vertices, plane_data.indices, "plane_mesh");
-                plane_model_->addMesh(std::move(plane_mesh));
-
-                // Posicionar el avión (seguirá la cámara)
-                plane_model_->getTransform().position = glm::vec3(0.0f, 5.0f, 0.0f);
-                plane_model_->getTransform().scale = glm::vec3(0.5f);
-                std::cout << "Plane model initialized" << std::endl;
-            }
-            else
-            {
-                std::cerr << "Failed to load plane model" << std::endl;
-            }
+            // Posicionar el avión (seguirá la cámara)
+            plane_model_->getTransform().position = glm::vec3(0.0f, 5.0f, 0.0f);
+            plane_model_->getTransform().scale = glm::vec3(0.5f);
+            std::cout << "Plane model initialized" << std::endl;
+        }
+        else
+        {
+            std::cerr << "Failed to load plane model" << std::endl;
         }
 
         // Inicializar skybox
