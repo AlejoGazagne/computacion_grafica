@@ -7,7 +7,8 @@ namespace Scene
 {
 
   Model::Model(const std::string &name)
-      : name_(name), visible_(true)
+      : name_(name), visible_(true), use_uniform_color_(false), 
+        uniform_color_(1.0f, 1.0f, 1.0f)
   {
   }
 
@@ -26,6 +27,17 @@ namespace Scene
 
     shader->use();
     shader->setMat4("model", transform_.getMatrix());
+
+    // Si se usa color uniforme, configurarlo en el shader
+    if (use_uniform_color_)
+    {
+      shader->setBool("useUniformColor", true);
+      shader->setVec3("uniformColor", uniform_color_);
+    }
+    else
+    {
+      shader->setBool("useUniformColor", false);
+    }
 
     for (const auto &mesh : meshes_)
     {

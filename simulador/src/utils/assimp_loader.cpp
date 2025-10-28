@@ -5,12 +5,40 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <iostream>
+#include <array>
 #include <cstdlib>
 #include <glad/glad.h>
+
+// Nota: STB_IMAGE_IMPLEMENTATION ya está definido en texture_manager.cpp
+// Solo incluimos el header para usar las funciones
 #include "../../include/stb_image.h"
 
 namespace Utils
 {
+
+  // === DEBUG: Axis remap configuration ===
+  // Permite reordenar e invertir ejes al importar el modelo para probar orientaciones.
+  // Definición: pos_dest = SIGN[i] * src[MAP_POS[i]]
+  // Preset actual: mantener X, usar Z como Y, e invertir Y->Z (common fix para GLTF Y-up vs Z-up)
+  namespace {
+    // Índices de origen: 0->x, 1->y, 2->z
+  // Ajuste: rotación de +90° alrededor de X para que el eje +Z original pase a -Y (ruedas hacia abajo)
+  // dest = (x, -z, y)
+  static const int MAP_POS[3] = {0, 2, 1};     // dest.x <- src.x, dest.y <- src.z, dest.z <- src.y
+  // Para corregir que el avión mire hacia atrás, aplicamos adicionalmente una rotación de 180° alrededor de Y (dest):
+  // esto equivale a invertir X y Z en el espacio destino. Mantenemos Y invertida para ruedas hacia abajo.
+  // Resultado final: dest = (-x, -z, -y)
+  static const float MAP_SIGN[3] = {-1.0f, -1.0f, -1.0f};
+
+    inline glm::vec3 mapVec3(const aiVector3D &v)
+    {
+      float s[3] = {v.x, v.y, v.z};
+      return glm::vec3(
+          s[MAP_POS[0]] * MAP_SIGN[0],
+          s[MAP_POS[1]] * MAP_SIGN[1],
+          s[MAP_POS[2]] * MAP_SIGN[2]);
+    }
+  }
 
   std::unique_ptr<Scene::Model> AssimpLoader::loadModel(
       const std::string &filepath,
@@ -39,6 +67,12 @@ namespace Utils
 
     // Crear modelo
     auto model = std::make_unique<Scene::Model>(filepath);
+
+  // Log de mapeo de ejes (una vez por modelo cargado)
+  std::cout << "[AssimpLoader] Axis remap in effect:" << std::endl;
+  std::cout << "  dest.x = sign(" << MAP_SIGN[0] << ") * src[" << MAP_POS[0] << "]" << std::endl;
+  std::cout << "  dest.y = sign(" << MAP_SIGN[1] << ") * src[" << MAP_POS[1] << "]" << std::endl;
+  std::cout << "  dest.z = sign(" << MAP_SIGN[2] << ") * src[" << MAP_POS[2] << "]" << std::endl;
 
     // Procesar el nodo raíz recursivamente
     processNode(scene->mRootNode, scene, model.get(), uniformColor, directory);
@@ -105,19 +139,13 @@ namespace Utils
     {
       Graphics::Rendering::Vertex vertex;
 
-      // Posición
-      vertex.position = glm::vec3(
-          mesh->mVertices[i].x,
-          mesh->mVertices[i].y,
-          mesh->mVertices[i].z);
+      // Posición con mapeo de ejes
+      vertex.position = mapVec3(mesh->mVertices[i]);
 
-      // Normales
+      // Normales (mismo mapeo + normalización)
       if (mesh->HasNormals())
       {
-        vertex.normal = glm::vec3(
-            mesh->mNormals[i].x,
-            mesh->mNormals[i].y,
-            mesh->mNormals[i].z);
+        vertex.normal = glm::normalize(mapVec3(mesh->mNormals[i]));
       }
       else
       {
@@ -139,15 +167,8 @@ namespace Utils
       // Tangentes
       if (mesh->HasTangentsAndBitangents())
       {
-        vertex.tangent = glm::vec3(
-            mesh->mTangents[i].x,
-            mesh->mTangents[i].y,
-            mesh->mTangents[i].z);
-
-        vertex.bitangent = glm::vec3(
-            mesh->mBitangents[i].x,
-            mesh->mBitangents[i].y,
-            mesh->mBitangents[i].z);
+        vertex.tangent = glm::normalize(mapVec3(mesh->mTangents[i]));
+        vertex.bitangent = glm::normalize(mapVec3(mesh->mBitangents[i]));
       }
       else
       {

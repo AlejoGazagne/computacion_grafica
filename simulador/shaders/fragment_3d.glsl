@@ -10,6 +10,10 @@ uniform sampler2D ourTexture;
 uniform bool useTexture;
 uniform vec3 viewPos;  // Posición de la cámara para calcular distancia
 
+// Color uniforme (para modelos sin textura)
+uniform bool useUniformColor = false;
+uniform vec3 uniformColor = vec3(0.5, 0.5, 0.5);
+
 // Niebla
 uniform bool fogEnabled = true;
 uniform float fogDensity = 0.05;
@@ -89,7 +93,10 @@ void main() {
     vec3 baseColor;
     float alpha = 1.0;
     
-    if (useTexture) {
+    if (useUniformColor) {
+        // Usar color uniforme
+        baseColor = uniformColor;
+    } else if (useTexture) {
         vec4 texColor = texture(ourTexture, TexCoords);
         baseColor = texColor.rgb;
         alpha = texColor.a;

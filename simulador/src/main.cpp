@@ -40,14 +40,18 @@
 #include "input/input_manager.h"
 
 // UI System
-#include "ui/hud.h"
 #include "ui/bank_angle.h"
 #include "ui/pitch_ladder.h"
+
+// Physics System
+#include "physics/flight_dynamics.h"
 
 // GLM
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 using namespace Graphics::Core;
 using namespace Graphics::Shaders;
@@ -71,7 +75,6 @@ private:
 
     // Scene Objects
     std::unique_ptr<Mesh> cube_mesh_;
-    std::unique_ptr<Model> tree_model_;
     std::unique_ptr<Model> plane_model_;
     std::unique_ptr<CameraController> camera_controller_;
     std::unique_ptr<Skybox> skybox_;
@@ -81,17 +84,11 @@ private:
     std::unique_ptr<LightManager> light_manager_;
 
     // UI Systems
-    UI::HUD hud_;
-    // Referencias no propietarias para acceso rápido a instrumentos específicos
-    UI::BankAngleIndicator *bank_angle_indicator_;
-    UI::PitchLadder *pitch_ladder_;
+    std::unique_ptr<BankAngleIndicator> bank_angle_indicator_;
+    std::unique_ptr<PitchLadder> pitch_ladder_;
 
-    enum class CameraMode
-    {
-        THIRD_PERSON = 0,
-        FIRST_PERSON = 1,
-        CINEMATIC_LATERAL = 2
-    };
+    // Physics System
+    std::unique_ptr<Physics::FlightDynamicsManager> flight_dynamics_;
 
     // Application State
     struct AppState
@@ -103,50 +100,20 @@ private:
         float delta_time = 0.0f;
         float last_frame = 0.0f;
         int terrain_size = 3;
-        bool use_billboards = true;
         bool use_textured_terrain = true;
-        CameraMode camera_mode = CameraMode::THIRD_PERSON;
     } app_state_;
+
+    // Third-person camera state
+    bool third_person_mode_ = false;
+    float third_person_distance_ = 80.0f; // distancia detrás del avión (alejada)
+    float third_person_height_ = 10.0f;   // altura por encima del avión
+    // Sin offsets de orientación del modelo: la orientación proviene del import (Assimp)
 
     struct AircraftState
     {
         glm::vec3 position = glm::vec3(0.0f, 50.0f, 0.0f);
         glm::vec3 velocity = glm::vec3(0.0f, 0.0f, -50.0f);
-        glm::vec3 forward = glm::vec3(0.0f, 0.0f, -1.0f);
-        glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-        glm::vec3 right = glm::vec3(1.0f, 0.0f, 0.0f);
-        glm::vec3 euler_deg = glm::vec3(0.0f);
     } aircraft_;
-
-    struct ThirdPersonCamState
-    {
-        glm::vec3 camPos = glm::vec3(0.0f);
-        glm::vec3 camLook = glm::vec3(0.0f);
-        bool initialized = false;
-
-        static constexpr float TP_DIST_BACK = 30.0f;
-        static constexpr float TP_DIST_UP = 10.0f;
-        static constexpr float TP_DIST_SIDE = 0.0f;
-        static constexpr float TP_LEAD_AHEAD = 10.0f;
-        static constexpr float TP_POS_SMOOTH = 0.18f;
-        static constexpr float TP_LOOK_SMOOTH = 0.18f;
-    } third_person_;
-
-    struct CinematicLateralState
-    {
-        glm::vec3 anchor = glm::vec3(0.0f);
-        glm::vec3 look_target = glm::vec3(0.0f);
-        bool initialized = false;
-        float lock_timer = 0.0f;
-
-        static constexpr float D_ahead = 200.0f; // Más adelante para efecto cinematográfico
-        float S_side = 120.0f;
-        float H_align = 0.0f; // Variable para altura aleatoria
-        static constexpr float D_rear_threshold = 150.0f;
-        static constexpr float relock_seconds = 1.2f;
-        static constexpr float look_smooth = 0.12f;
-        static constexpr float eps_perp = 0.25f;
-    } cinematic_;
 
     struct InputState
     {
@@ -156,10 +123,10 @@ private:
         bool e_pressed = false;
         bool f_pressed = false;
         bool f1_pressed = false;
-        bool y_pressed = false;
         bool num2_pressed = false;
         bool c_pressed = false;
-        bool x_pressed = false;
+    bool x_pressed = false; // (sin uso)
+    bool y_pressed = false; // (sin uso)
     } input_state_;
 
 public:
@@ -182,8 +149,15 @@ public:
             }
         }
 
-        // Actualizar HUD - propaga el cambio de tamaño a todos los instrumentos
-        hud_.updateScreenSize(width, height);
+        // Actualizar HUD
+        if (bank_angle_indicator_)
+        {
+            bank_angle_indicator_->updateScreenSize(width, height);
+        }
+        if (pitch_ladder_)
+        {
+            pitch_ladder_->updateScreenSize(width, height);
+        }
     }
 
     /**
@@ -217,7 +191,13 @@ public:
             return false;
         }
 
-        // 5. Inicializar HUD
+        // 5. Inicializar física de vuelo
+        if (!initializePhysics())
+        {
+            return false;
+        }
+
+        // 6. Inicializar HUD
         if (!initializeUI())
         {
             return false;
@@ -256,9 +236,10 @@ private:
     bool initializeOpenGL()
     {
         WindowConfig config;
-        config.width = 1024;
-        config.height = 768;
-        config.title = "OpenGL Graphics Engine - Modular Architecture";
+        config.width = 1920;  // Resolución común de pantalla completa
+        config.height = 1080;
+        config.title = "Flight Simulator - Physics-based Flight Dynamics";
+        config.fullscreen = true;  // Activar pantalla completa
         config.vsync = true;
 
         context_ = std::make_unique<OpenGLContext>();
@@ -425,18 +406,23 @@ private:
 
         // ===== CARGAR MODELOS =====
 
-        // Cargar avión usando Assimp con color gris uniforme
-        plane_model_ = ::Utils::AssimpLoader::loadModel("textures/plane/Jet_Lowpoly.obj");
-        if (plane_model_)
+        // Cargar avión usando Assimp (modelo GLB con texturas y colores propios)
         {
-            // Posicionar el avión (seguirá la cámara)
-            plane_model_->getTransform().position = glm::vec3(0.0f, 5.0f, 0.0f);
-            plane_model_->getTransform().scale = glm::vec3(0.5f);
-            std::cout << "Plane model initialized" << std::endl;
-        }
-        else
-        {
-            std::cerr << "Failed to load plane model" << std::endl;
+            plane_model_ = ::Utils::AssimpLoader::loadModel("textures/plane/f16.glb");
+            
+            if (plane_model_)
+            {
+                // Posicionar el avión (seguirá la cámara)
+                plane_model_->getTransform().position = glm::vec3(0.0f, 5.0f, 0.0f);
+                plane_model_->getTransform().scale = glm::vec3(1.0f);
+                // Ocultar el avión en primera persona
+                plane_model_->setVisible(false);
+                std::cout << "Plane model (F16 GLB) loaded successfully with Assimp" << std::endl;
+            }
+            else
+            {
+                std::cerr << "Failed to load plane model (F16 GLB) with Assimp" << std::endl;
+            }
         }
 
         // Inicializar skybox
@@ -456,6 +442,18 @@ private:
     }
 
     /**
+     * @brief Inicializar sistema de física de vuelo
+     */
+    bool initializePhysics()
+    {
+        flight_dynamics_ = std::make_unique<Physics::FlightDynamicsManager>();
+        flight_dynamics_->initialize();
+
+        std::cout << "Flight dynamics initialized successfully" << std::endl;
+        return true;
+    }
+
+    /**
      * @brief Inicializar sistema de UI/HUD
      */
     bool initializeUI()
@@ -464,25 +462,25 @@ private:
         int width, height;
         glfwGetWindowSize(context_->getWindow(), &width, &height);
 
-        // Crear Bank Angle Indicator
-        auto bank_indicator = std::make_unique<BankAngleIndicator>(width, height);
-        bank_angle_indicator_ = bank_indicator.get(); // Guardar referencia antes de mover
-        hud_.addInstrument(std::move(bank_indicator));
+        // Crear indicador de bank angle
+        bank_angle_indicator_ = std::make_unique<BankAngleIndicator>(width, height);
 
-        // Crear Pitch Ladder
-        auto pitch_ladder = std::make_unique<PitchLadder>(width, height);
-        pitch_ladder_ = pitch_ladder.get(); // Guardar referencia antes de mover
-        hud_.addInstrument(std::move(pitch_ladder));
-
-        // Verificar que todos los instrumentos del HUD estén listos
-        if (!hud_.allInstrumentsReady())
+        if (!bank_angle_indicator_->isInitialized())
         {
-            std::cerr << "Failed to initialize HUD instruments" << std::endl;
+            std::cerr << "Failed to initialize Bank Angle HUD" << std::endl;
             return false;
         }
 
-        std::cout << "HUD System initialized successfully with "
-                  << hud_.getInstrumentCount() << " instruments" << std::endl;
+        // Crear pitch ladder
+        pitch_ladder_ = std::make_unique<PitchLadder>(width, height);
+
+        if (!pitch_ladder_->isInitialized())
+        {
+            std::cerr << "Failed to initialize Pitch Ladder HUD" << std::endl;
+            return false;
+        }
+
+        std::cout << "Bank Angle HUD and Pitch Ladder initialized successfully" << std::endl;
         return true;
     }
 
@@ -499,6 +497,15 @@ private:
             if (camera_controller_->isMouseCaptured()) {
                 camera_controller_->mouseCallback(context_->getWindow(), xpos, ypos);
             } });
+
+        // Rueda del mouse: ajustar distancia en tercera persona
+        input_manager.addScrollCallback([this](double xoffset, double yoffset)
+                                        {
+            if (third_person_mode_) {
+                third_person_distance_ -= static_cast<float>(yoffset) * 5.0f; // acercar/alejar
+                third_person_distance_ = glm::clamp(third_person_distance_, 10.0f, 500.0f);
+            }
+        });
     }
 
     /**
@@ -529,8 +536,106 @@ private:
             camera_controller_->processInput(app_state_.delta_time);
         }
 
+        // Procesar controles de vuelo
+        processFlightControls();
+
         // Procesar teclas especiales
         processSpecialKeys();
+    }
+
+    /**
+     * @brief Procesa los controles de vuelo del avión
+     */
+    void processFlightControls()
+    {
+        if (!flight_dynamics_)
+            return;
+
+        auto &input_manager = InputManager::getInstance();
+        
+        // Sensibilidades de control (ajustables)
+        const float throttle_rate = 0.3f * app_state_.delta_time;  // 30% por segundo
+        const float elevator_rate = glm::radians(30.0f) * app_state_.delta_time;  // 30 grados/seg
+        const float aileron_rate = glm::radians(45.0f) * app_state_.delta_time;   // 45 grados/seg
+        const float rudder_rate = glm::radians(30.0f) * app_state_.delta_time;    // 30 grados/seg
+        
+        // THROTTLE (Potencia del motor)
+        // W - Aumentar potencia
+        if (input_manager.isKeyPressed(InputManager::KEY_W))
+        {
+            flight_dynamics_->adjustThrottle(throttle_rate);
+        }
+        // S - Disminuir potencia
+        if (input_manager.isKeyPressed(InputManager::KEY_S))
+        {
+            flight_dynamics_->adjustThrottle(-throttle_rate);
+        }
+        
+        // ELEVATOR (Control de Pitch - arriba/abajo)
+        // Flecha Arriba - Levantar morro (pitch up)
+        if (input_manager.isKeyPressed(InputManager::KEY_UP))
+        {
+            flight_dynamics_->adjustElevator(-elevator_rate);  // Negativo para pitch up
+        }
+        // Flecha Abajo - Bajar morro (pitch down)
+        if (input_manager.isKeyPressed(InputManager::KEY_DOWN))
+        {
+            flight_dynamics_->adjustElevator(elevator_rate);   // Positivo para pitch down
+        }
+        
+        // AILERON (Control de Roll - inclinación lateral)
+        // Flecha Izquierda - Inclinar a la izquierda
+        if (input_manager.isKeyPressed(InputManager::KEY_LEFT))
+        {
+            flight_dynamics_->adjustAileron(-aileron_rate);  // Negativo para roll left
+        }
+        // Flecha Derecha - Inclinar a la derecha
+        if (input_manager.isKeyPressed(InputManager::KEY_RIGHT))
+        {
+            flight_dynamics_->adjustAileron(aileron_rate);   // Positivo para roll right
+        }
+        
+        // RUDDER (Control de Yaw - dirección izquierda/derecha)
+        // A - Girar a la izquierda
+        if (input_manager.isKeyPressed(InputManager::KEY_A))
+        {
+            flight_dynamics_->adjustRudder(-rudder_rate);  // Negativo para yaw left
+        }
+        // D - Girar a la derecha
+        if (input_manager.isKeyPressed(InputManager::KEY_D))
+        {
+            flight_dynamics_->adjustRudder(rudder_rate);   // Positivo para yaw right
+        }
+
+        // Retorno al centro (amortiguación) cuando no se presionan teclas
+        const float damping = 0.95f;  // Factor de amortiguación
+        
+        // Retornar elevator al centro gradualmente
+        if (!input_manager.isKeyPressed(InputManager::KEY_UP) && 
+            !input_manager.isKeyPressed(InputManager::KEY_DOWN))
+        {
+            auto& controls = flight_dynamics_->getControls();
+            controls.elevator *= damping;
+            if (std::abs(controls.elevator) < 0.001f) controls.elevator = 0.0f;
+        }
+        
+        // Retornar aileron al centro gradualmente
+        if (!input_manager.isKeyPressed(InputManager::KEY_LEFT) && 
+            !input_manager.isKeyPressed(InputManager::KEY_RIGHT))
+        {
+            auto& controls = flight_dynamics_->getControls();
+            controls.aileron *= damping;
+            if (std::abs(controls.aileron) < 0.001f) controls.aileron = 0.0f;
+        }
+        
+        // Retornar rudder al centro gradualmente
+        if (!input_manager.isKeyPressed(InputManager::KEY_A) && 
+            !input_manager.isKeyPressed(InputManager::KEY_D))
+        {
+            auto& controls = flight_dynamics_->getControls();
+            controls.rudder *= damping;
+            if (std::abs(controls.rudder) < 0.001f) controls.rudder = 0.0f;
+        }
     }
 
     /**
@@ -641,21 +746,6 @@ private:
             input_state_.f1_pressed = false;
         }
 
-        // Y - Toggle Billboard LOD
-        if (input_manager.isKeyPressed(InputManager::KEY_Y))
-        {
-            if (!input_state_.y_pressed)
-            {
-                app_state_.use_billboards = !app_state_.use_billboards;
-                std::cout << "Billboard LOD: " << (app_state_.use_billboards ? "ON" : "OFF") << std::endl;
-                input_state_.y_pressed = true;
-            }
-        }
-        else
-        {
-            input_state_.y_pressed = false;
-        }
-
         // 2 - Toggle Terrain Texture Mode
         if (input_manager.isKeyPressed(InputManager::KEY_2))
         {
@@ -671,26 +761,30 @@ private:
             input_state_.num2_pressed = false;
         }
 
-        // C - Toggle Camera Mode
+        // C - Toggle tercera persona
         if (input_manager.isKeyPressed(InputManager::KEY_C))
         {
             if (!input_state_.c_pressed)
             {
-                app_state_.camera_mode = static_cast<CameraMode>(
-                    (static_cast<int>(app_state_.camera_mode) + 1) % 3);
-
-                const char *mode_names[] = {"THIRD PERSON", "FIRST PERSON", "CINEMATIC LATERAL"};
-                std::cout << "Camera mode: " << mode_names[static_cast<int>(app_state_.camera_mode)] << std::endl;
-
-                if (app_state_.camera_mode == CameraMode::THIRD_PERSON)
+                third_person_mode_ = !third_person_mode_;
+                
+                if (third_person_mode_)
                 {
-                    third_person_.initialized = false;
+                    std::cout << "Third-person camera: ON" << std::endl;
+                    if (plane_model_)
+                    {
+                        plane_model_->setVisible(true);
+                    }
                 }
-                else if (app_state_.camera_mode == CameraMode::CINEMATIC_LATERAL)
+                else
                 {
-                    cinematic_.initialized = false;
+                    std::cout << "First-person camera: ON" << std::endl;
+                    if (plane_model_)
+                    {
+                        plane_model_->setVisible(false);
+                    }
                 }
-
+                
                 input_state_.c_pressed = true;
             }
         }
@@ -698,138 +792,64 @@ private:
         {
             input_state_.c_pressed = false;
         }
-    }
 
-    void updateAircraft(float dt)
-    {
-        Camera *camera = camera_controller_->getActiveCamera();
-        if (!camera)
-            return;
-
-        // Aircraft sigue la cámara de control (primera persona), pero NO viceversa
-        aircraft_.position = camera->getPosition();
-        aircraft_.forward = glm::normalize(camera->getFront());
-        aircraft_.up = glm::vec3(0.0f, 1.0f, 0.0f);
-        aircraft_.right = glm::normalize(glm::cross(aircraft_.up, aircraft_.forward));
-        aircraft_.euler_deg = glm::vec3(-camera->getPitch(), camera->getYaw(), camera->getRoll());
-    }
-
-    void updateThirdPerson(float dt)
-    {
-        glm::vec3 U_world(0.0f, 1.0f, 0.0f);
-        glm::vec3 Fh = glm::normalize(glm::vec3(aircraft_.forward.x, 0.0f, aircraft_.forward.z));
-        glm::vec3 Rh = glm::normalize(glm::cross(U_world, Fh));
-
-        if (!third_person_.initialized)
-        {
-            third_person_.camPos = aircraft_.position - Fh * third_person_.TP_DIST_BACK + U_world * third_person_.TP_DIST_UP;
-            third_person_.camLook = aircraft_.position + aircraft_.forward * third_person_.TP_LEAD_AHEAD;
-            third_person_.initialized = true;
-            return;
-        }
-
-        glm::vec3 pos_target = aircraft_.position - Fh * third_person_.TP_DIST_BACK + U_world * third_person_.TP_DIST_UP + Rh * third_person_.TP_DIST_SIDE;
-        glm::vec3 look_target = aircraft_.position + aircraft_.forward * third_person_.TP_LEAD_AHEAD;
-
-        if (third_person_.TP_POS_SMOOTH > 0.0f)
-        {
-            float alpha = 1.0f - glm::pow(1.0f - third_person_.TP_POS_SMOOTH, dt * 60.0f);
-            third_person_.camPos = glm::mix(third_person_.camPos, pos_target, alpha);
-        }
-        else
-        {
-            third_person_.camPos = pos_target;
-        }
-
-        if (third_person_.TP_LOOK_SMOOTH > 0.0f)
-        {
-            float alpha = 1.0f - glm::pow(1.0f - third_person_.TP_LOOK_SMOOTH, dt * 60.0f);
-            third_person_.camLook = glm::mix(third_person_.camLook, look_target, alpha);
-        }
-        else
-        {
-            third_person_.camLook = look_target;
-        }
-    }
-
-    void updateCinematicLateral(float dt)
-    {
-        glm::vec3 U_world(0.0f, 1.0f, 0.0f);
-        glm::vec3 Fh = glm::normalize(glm::vec3(aircraft_.forward.x, 0.0f, aircraft_.forward.z));
-        glm::vec3 Rh = glm::normalize(glm::cross(U_world, Fh));
-
-        if (!cinematic_.initialized)
-        {
-            // Random para lado (izquierda o derecha)
-            static std::random_device rd;
-            static std::mt19937 gen(rd());
-            std::uniform_real_distribution<float> side_dist(-1.0f, 1.0f);
-            cinematic_.S_side = (side_dist(gen) > 0.0f) ? 120.0f : -120.0f;
-
-            // Random para altura (-20 a +20 metros respecto al avión)
-            std::uniform_real_distribution<float> height_dist(-20.0f, 20.0f);
-            cinematic_.H_align = height_dist(gen);
-
-            cinematic_.anchor = aircraft_.position + Rh * cinematic_.S_side + Fh * cinematic_.D_ahead;
-            cinematic_.anchor.y = aircraft_.position.y + cinematic_.H_align;
-            cinematic_.look_target = aircraft_.position;
-            cinematic_.initialized = true;
-            cinematic_.lock_timer = 0.0f;
-            return;
-        }
-
-        cinematic_.anchor.y = aircraft_.position.y + cinematic_.H_align;
-
-        if (cinematic_.lock_timer > 0.0f)
-            cinematic_.lock_timer -= dt;
-
-        bool paso = glm::dot(aircraft_.forward, aircraft_.position - cinematic_.anchor) > 0.0f;
-        bool lejos = glm::distance(aircraft_.position, cinematic_.anchor) > cinematic_.D_rear_threshold;
-
-        if (paso && lejos && cinematic_.lock_timer <= 0.0f)
-        {
-            // Random para lado (izquierda o derecha)
-            static std::random_device rd;
-            static std::mt19937 gen(rd());
-            std::uniform_real_distribution<float> side_dist(-1.0f, 1.0f);
-            cinematic_.S_side = (side_dist(gen) > 0.0f) ? 120.0f : -120.0f;
-
-            // Random para altura (-20 a +20 metros respecto al avión)
-            std::uniform_real_distribution<float> height_dist(-20.0f, 20.0f);
-            cinematic_.H_align = height_dist(gen);
-
-            cinematic_.anchor = aircraft_.position + Rh * cinematic_.S_side + Fh * cinematic_.D_ahead;
-            cinematic_.anchor.y = aircraft_.position.y + cinematic_.H_align;
-            cinematic_.lock_timer = cinematic_.relock_seconds;
-
-            // Aceptación: verificar perpendicularidad
-            glm::vec3 dir = glm::normalize(aircraft_.position - cinematic_.anchor);
-            float perp = glm::abs(glm::dot(dir, Fh));
-            // assert(perp <= cinematic_.eps_perp + 0.05f); // Vista lateral, no detrás
-        }
-
-        if (cinematic_.look_smooth > 0.0f)
-        {
-            float alpha = 1.0f - glm::pow(1.0f - cinematic_.look_smooth, dt * 60.0f);
-            cinematic_.look_target = glm::mix(cinematic_.look_target, aircraft_.position, alpha);
-        }
-        else
-        {
-            cinematic_.look_target = aircraft_.position;
-        }
+        // Sin ajustes de orientación del modelo en main
     }
 
     void update()
     {
-        updateAircraft(app_state_.delta_time);
-
-        if (app_state_.camera_mode == CameraMode::THIRD_PERSON)
+        // Actualizar física de vuelo
+        if (flight_dynamics_)
         {
-            updateThirdPerson(app_state_.delta_time);
-        }
-        else if (app_state_.camera_mode == CameraMode::CINEMATIC_LATERAL)
-        {
-            updateCinematicLateral(app_state_.delta_time);
+            flight_dynamics_->update(app_state_.delta_time);
+            
+            // Obtener datos de vuelo del modelo físico
+            Physics::FlightData flight_data = flight_dynamics_->getFlightData();
+            glm::vec3 aircraft_position = flight_dynamics_->getPosition();
+            glm::vec3 euler_angles = flight_dynamics_->getEulerAngles();
+            
+            // Actualizar cámara según la posición y orientación del avión
+            Camera *camera = camera_controller_->getActiveCamera();
+            if (camera)
+            {
+                if (third_person_mode_)
+                {
+                    // Modo tercera persona: posicionar avión y cámara
+                    if (plane_model_)
+                    {
+                        auto &t = plane_model_->getTransform();
+                        t.position = aircraft_position;
+                        t.rotation.x = glm::radians(euler_angles.x);  // pitch
+                        t.rotation.y = glm::radians(euler_angles.y);  // yaw
+                        t.rotation.z = glm::radians(euler_angles.z);  // roll
+                        
+                        // Calcular posición de la cámara detrás del avión
+                        glm::mat4 aircraft_transform = glm::mat4(1.0f);
+                        aircraft_transform = glm::translate(aircraft_transform, aircraft_position);
+                        aircraft_transform = glm::rotate(aircraft_transform, glm::radians(euler_angles.y), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
+                        aircraft_transform = glm::rotate(aircraft_transform, glm::radians(euler_angles.x), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
+                        aircraft_transform = glm::rotate(aircraft_transform, glm::radians(euler_angles.z), glm::vec3(0.0f, 0.0f, 1.0f)); // roll
+                        
+                        // Offset de cámara en coordenadas del avión (detrás y arriba)
+                        glm::vec3 camera_offset = glm::vec3(0.0f, third_person_height_, third_person_distance_);
+                        glm::vec4 camera_pos_world = aircraft_transform * glm::vec4(camera_offset, 1.0f);
+                        
+                        camera->setPosition(glm::vec3(camera_pos_world));
+                        camera->setRotation(euler_angles.y, euler_angles.x, euler_angles.z);
+                    }
+                }
+                else
+                {
+                    // Modo primera persona: cámara en posición del avión
+                    camera->setPosition(aircraft_position);
+                    camera->setRotation(euler_angles.y, euler_angles.x, euler_angles.z);
+                    
+                    if (plane_model_)
+                    {
+                        plane_model_->setVisible(false);
+                    }
+                }
+            }
         }
     }
 
@@ -847,27 +867,9 @@ private:
             return;
         }
 
-        glm::mat4 view_matrix;
+        glm::mat4 view_matrix = camera->getViewMatrix();
         glm::mat4 projection_matrix = camera->getProjectionMatrix();
-        glm::vec3 camera_pos;
-
-        if (app_state_.camera_mode == CameraMode::THIRD_PERSON)
-        {
-            glm::vec3 U_world(0.0f, 1.0f, 0.0f);
-            view_matrix = glm::lookAt(third_person_.camPos, third_person_.camLook, U_world);
-            camera_pos = third_person_.camPos;
-        }
-        else if (app_state_.camera_mode == CameraMode::CINEMATIC_LATERAL)
-        {
-            glm::vec3 U_world(0.0f, 1.0f, 0.0f);
-            view_matrix = glm::lookAt(cinematic_.anchor, cinematic_.look_target, U_world);
-            camera_pos = cinematic_.anchor;
-        }
-        else
-        {
-            view_matrix = camera->getViewMatrix();
-            camera_pos = camera->getPosition();
-        }
+        glm::vec3 camera_pos = camera->getPosition();
 
         // Renderizar skybox primero (debe estar en el fondo)
         if (skybox_)
@@ -930,14 +932,14 @@ private:
             terrain_shader->setFloat("fogDensity", 0.0001f);
             terrain_shader->setVec3("fogColor", glm::vec3(0.85f, 0.90f, 0.95f));
 
-            // Configurar iluminación
+            // Configurar iluminación (solo para shader textured)
             if (app_state_.use_textured_terrain)
             {
                 light_manager_->applyToShader(terrain_shader);
             }
             else
             {
-                // Para terreno verde simple, configurar luz direccional
+                // Para terreno facetado, solo configurar luz direccional manualmente
                 if (light_manager_->getMainLight())
                 {
                     auto main_light = light_manager_->getMainLight();
@@ -965,6 +967,9 @@ private:
                 }
             }
 
+            // Desactivar color uniforme para el terreno
+            terrain_shader->setBool("useUniformColor", false);
+
             // Configurar matriz modelo para el terrain (sin transformaciones)
             glm::mat4 terrain_model = glm::mat4(1.0f);
             terrain_shader->setMat4("model", terrain_model);
@@ -972,55 +977,13 @@ private:
             terrain_->draw();
         }
 
-        // Renderizar árboles de prueba (UN ÁRBOL EN POSICIÓN FIJA para verificar que se ve)
-        if (tree_model_)
-        {
-            shader->use();
-
-            // Posición de prueba del árbol (al lado de la caja)
-            float cube_x = 0.0f;
-            float cube_z = 0.0f;
-            float terrain_height_cube = terrain_->getHeightAt(cube_x, cube_z);
-            glm::mat4 tree_model = glm::mat4(1.0f);
-            tree_model = glm::translate(tree_model, glm::vec3(8.0f, terrain_height_cube, cube_z));
-            tree_model = glm::scale(tree_model, glm::vec3(1.0f));
-
-            shader->setMat4("model", tree_model);
-            shader->setMat4("view", view_matrix);
-            shader->setMat4("projection", projection_matrix);
-            shader->setBool("useTexture", app_state_.use_texture);
-            shader->setVec3("viewPos", camera_pos);
-            shader->setBool("fogEnabled", app_state_.fog_enabled);
-            shader->setFloat("fogDensity", 0.0001f);
-            shader->setVec3("fogColor", glm::vec3(0.85f, 0.90f, 0.95f));
-
-            if (light_manager_)
-            {
-                light_manager_->applyToShader(shader);
-            }
-
-            Texture *tree_texture = texture_manager.getTexture("fallback");
-            if (tree_texture)
-            {
-                tree_texture->bind(0);
-                shader->setInt("ourTexture", 0);
-            }
-
-            // Renderizar solo el mesh (sin instancing, un solo árbol)
-            if (tree_model_->getMeshCount() > 0)
-            {
-                // Acceder al primer mesh y renderizarlo sin instancing
-                // Necesitamos exponer un método en Model para esto
-                tree_model_->render(shader);
-            }
-
-            shader->unuse();
-        }
-
         // Renderizar cubo
         if (cube_mesh_ && terrain_)
         {
             shader->use();
+            
+            // Desactivar color uniforme para el cubo
+            shader->setBool("useUniformColor", false);
 
             // Configurar textura del cubo
             if (app_state_.use_texture)
@@ -1055,35 +1018,24 @@ private:
             shader->unuse();
         }
 
-        if (plane_model_ && app_state_.camera_mode != CameraMode::FIRST_PERSON)
+        // Renderizar avión (solo en tercera persona)
+        if (plane_model_ && plane_model_->isVisible())
         {
-            // El avión NO depende de la cámara
-            // Usa AircraftState independiente
-            shader->use();
-            plane_model_->getTransform().position = aircraft_.position;
-            plane_model_->getTransform().rotation = glm::radians(aircraft_.euler_deg);
-            plane_model_->getTransform().scale = glm::vec3(1.0f);
+            // Reutilizamos el shader básico ya configurado (view/projection/fog/lights)
             plane_model_->render(shader);
-            shader->unuse();
         }
 
-        if (app_state_.camera_mode == CameraMode::FIRST_PERSON)
+        // Renderizar HUD (siempre en primera persona)
+        if (bank_angle_indicator_ && bank_angle_indicator_->isInitialized())
         {
-            // Actualizar datos de los instrumentos antes de renderizar
-            if (bank_angle_indicator_)
-            {
-                float roll_angle = camera->getRoll();
-                bank_angle_indicator_->setBankAngle(roll_angle);
-            }
+            float roll_angle = camera->getRoll();
+            bank_angle_indicator_->render(roll_angle);
+        }
 
-            if (pitch_ladder_)
-            {
-                float pitch_angle = camera->getPitch();
-                pitch_ladder_->setPitch(pitch_angle);
-            }
-
-            // Renderizar todo el HUD de una vez
-            hud_.render();
+        if (pitch_ladder_ && pitch_ladder_->isInitialized())
+        {
+            float pitch_angle = camera->getPitch();
+            pitch_ladder_->render(pitch_angle);
         }
     }
 
@@ -1106,7 +1058,6 @@ private:
 
         // Limpiar objetos de escena
         cube_mesh_.reset();
-        tree_model_.reset();
         plane_model_.reset();
         camera_controller_.reset();
         skybox_.reset();
@@ -1124,26 +1075,28 @@ private:
     void printControls() const
     {
         std::cout << "\n===== FLIGHT SIMULATOR CONTROLS =====" << std::endl;
-        std::cout << "W        : Thrust forward (accelerate)" << std::endl;
-        std::cout << "A        : Roll left (bank left)" << std::endl;
-        std::cout << "D        : Roll right (bank right)" << std::endl;
-        std::cout << "Mouse ↕  : Pitch (nose up/down)" << std::endl;
-        std::cout << "Mouse ↔  : Yaw (turn left/right)" << std::endl;
-        std::cout << "SPACE    : Move up" << std::endl;
-        std::cout << "SHIFT    : Move down" << std::endl;
         std::cout << "" << std::endl;
-        std::cout << "⚡ No pitch limits - Full 360° loops!" << std::endl;
+        std::cout << "FLIGHT CONTROLS (Physics-based):" << std::endl;
+        std::cout << "W / S         : Throttle Up / Down" << std::endl;
+        std::cout << "UP / DOWN     : Pitch Up / Down (Elevator)" << std::endl;
+        std::cout << "LEFT / RIGHT  : Roll Left / Right (Aileron)" << std::endl;
+        std::cout << "A / D         : Yaw Left / Right (Rudder)" << std::endl;
         std::cout << "" << std::endl;
-        std::cout << "G        : Toggle wireframe" << std::endl;
-        std::cout << "T        : Toggle texture" << std::endl;
-        std::cout << "F        : Toggle fog" << std::endl;
-        std::cout << "Y        : Toggle billboard LOD (trees)" << std::endl;
-        std::cout << "2        : Toggle terrain mode (textured vs faceted green)" << std::endl;
-        std::cout << "R        : Reset camera" << std::endl;
-        std::cout << "E        : Toggle mouse capture" << std::endl;
-        std::cout << "1        : Show controls" << std::endl;
-        std::cout << "ESC      : Exit" << std::endl;
-        std::cout << "==============================" << std::endl;
+        std::cout << "CAMERA & VIEW:" << std::endl;
+        std::cout << "C             : Toggle third-person camera" << std::endl;
+        std::cout << "E             : Toggle mouse capture" << std::endl;
+        std::cout << "R             : Reset camera" << std::endl;
+        std::cout << "" << std::endl;
+        std::cout << "GRAPHICS:" << std::endl;
+        std::cout << "G             : Toggle wireframe" << std::endl;
+        std::cout << "T             : Toggle texture" << std::endl;
+        std::cout << "F             : Toggle fog" << std::endl;
+        std::cout << "2             : Toggle terrain mode (textured vs faceted)" << std::endl;
+        std::cout << "" << std::endl;
+        std::cout << "INFO:" << std::endl;
+        std::cout << "1             : Show controls" << std::endl;
+        std::cout << "ESC           : Exit" << std::endl;
+        std::cout << "======================================" << std::endl;
     }
 };
 

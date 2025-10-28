@@ -6,15 +6,13 @@ INC_DIRS = \
 	./src/graphics/textures \
 	./src/graphics/rendering \
 	./src/graphics/skybox \
-	./src/graphics/lighting \
 	./src/scene \
 	./src/input \
 	./src/ui \
 	./src/utils \
+	./src/physics \
 	./include \
-	/usr/include/glm
-
-LIB_DIRS = \
+	/usr/include/glmLIB_DIRS = \
 ./include
 
 SRC_DIR = \
@@ -35,13 +33,17 @@ CAMERA_CXX = scene/camera
 TERRAIN_CXX = scene/terrain
 MODEL_CXX = scene/model
 INPUT_MANAGER_CXX = input/input_manager
-HUD_INSTRUMENT_CXX = ui/hud_instrument
-HUD_CXX = ui/hud
 BANK_ANGLE_CXX = ui/bank_angle
 PITCH_LADDER_CXX = ui/pitch_ladder
 TEXT_RENDERER_CXX = ui/text_renderer
 TEXT_RENDERER_ATLAS_CXX = ui/text_renderer_atlas
 ASSIMP_LOADER_CXX = utils/assimp_loader
+
+# Physics system (FDM)
+FLIGHT_DYNAMICS_CXX = physics/flight_dynamics
+AERODYNAMICS_MODEL_CXX = dlfdm/aerodynamicsmodel
+AIRCRAFT_DYNAMICS_CXX = dlfdm/aircraftdynamics
+FDM_SOLVER_CXX = dlfdm/fdmsolver
 
 # Lista de objetos adicionales
 ADDITIONAL_OBJS = \
@@ -55,13 +57,15 @@ ADDITIONAL_OBJS = \
 	$(BUILD_DIR)/$(TERRAIN_CXX).o \
 	$(BUILD_DIR)/$(MODEL_CXX).o \
 	$(BUILD_DIR)/$(INPUT_MANAGER_CXX).o \
-	$(BUILD_DIR)/$(HUD_INSTRUMENT_CXX).o \
-	$(BUILD_DIR)/$(HUD_CXX).o \
 	$(BUILD_DIR)/$(BANK_ANGLE_CXX).o \
 	$(BUILD_DIR)/$(PITCH_LADDER_CXX).o \
 	$(BUILD_DIR)/$(TEXT_RENDERER_CXX).o \
 	$(BUILD_DIR)/$(TEXT_RENDERER_ATLAS_CXX).o \
-	$(BUILD_DIR)/$(ASSIMP_LOADER_CXX).o# Compile with debug symbols
+	$(BUILD_DIR)/$(ASSIMP_LOADER_CXX).o \
+	$(BUILD_DIR)/$(FLIGHT_DYNAMICS_CXX).o \
+	$(BUILD_DIR)/$(AERODYNAMICS_MODEL_CXX).o \
+	$(BUILD_DIR)/$(AIRCRAFT_DYNAMICS_CXX).o \
+	$(BUILD_DIR)/$(FDM_SOLVER_CXX).o# Compile with debug symbols
 USERCPPFLAGS = -g -Wall -Wextra
 
 include ./Makefile.master

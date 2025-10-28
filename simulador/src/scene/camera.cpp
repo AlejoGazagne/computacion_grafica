@@ -209,44 +209,23 @@ namespace Scene {
     }
 
     void Camera::processKeyboardInput(GLFWwindow* window, float delta_time) {
-        float velocity = config_.movement_speed * delta_time;
-        
-        // Controles de simulador de vuelo
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            move(CameraMovement::FORWARD, delta_time);  // Solo W para acelerar adelante
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            move(CameraMovement::ROLL_LEFT, delta_time);  // A para inclinar izquierda
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            move(CameraMovement::ROLL_RIGHT, delta_time); // D para inclinar derecha
-        
-        // Mantener controles verticales para casos especiales
-        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-            move(CameraMovement::DOWN, delta_time);
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-            move(CameraMovement::UP, delta_time);
+        // TODOS LOS CONTROLES DESHABILITADOS
+        // No hay entrada de teclado para movimiento de cámara
     }
 
     void Camera::processMouseMovement(double xpos, double ypos) {
+        // CONTROL DE MOUSE DESHABILITADO
+        // Actualizar posición del mouse sin aplicar rotación
         if (first_mouse_) {
             last_x_ = static_cast<float>(xpos);
             last_y_ = static_cast<float>(ypos);
             first_mouse_ = false;
         }
-
-        float xoffset = static_cast<float>(xpos) - last_x_;
-        float yoffset = last_y_ - static_cast<float>(ypos); // Reversed since y-coordinates go from bottom to top
         
         last_x_ = static_cast<float>(xpos);
         last_y_ = static_cast<float>(ypos);
-
-        xoffset *= config_.mouse_sensitivity;
-        yoffset *= config_.mouse_sensitivity;
-
-        if (config_.type == CameraType::ORBITAL) {
-            orbitAroundTarget(xoffset, yoffset);
-        } else {
-            rotate(xoffset, yoffset);
-        }
+        
+        // No se aplica rotación (pitch/yaw deshabilitados)
     }
 
     void Camera::processMouseScroll(float yoffset) {
