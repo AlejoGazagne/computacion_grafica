@@ -41,6 +41,9 @@ namespace Scene
 
     for (const auto &mesh : meshes_)
     {
+      // Configurar si usar textura o no basado en cada mesh
+      shader->setBool("useTexture", mesh->hasTexture());
+      
       if (mesh->hasInstanceData())
       {
         mesh->drawInstanced(mesh->getInstanceCount());

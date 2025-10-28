@@ -4,14 +4,18 @@
 
 #include "../scene/mesh.h"
 #include "../scene/model.h"
+#include "../graphics/textures/texture_manager.h"
 #include <glm/glm.hpp>
 #include <string>
 #include <memory>
+#include <map>
 
 // Forward declarations de Assimp
 struct aiNode;
 struct aiScene;
 struct aiMesh;
+struct aiMaterial;
+struct aiTexture;
 
 namespace Utils
 {
@@ -41,7 +45,8 @@ namespace Utils
         aiNode *node,
         const aiScene *scene,
         Scene::Model *model,
-        const glm::vec3 &uniformColor);
+        const glm::vec3 &uniformColor,
+        const std::string &directory);
 
     /**
      * @brief Procesa una malla de Assimp
@@ -49,7 +54,24 @@ namespace Utils
     static std::unique_ptr<Graphics::Rendering::Mesh> processMesh(
         aiMesh *mesh,
         const aiScene *scene,
-        const glm::vec3 &uniformColor);
+        const glm::vec3 &uniformColor,
+        const std::string &directory);
+
+    /**
+     * @brief Carga una textura desde un material
+     * @return ID de la textura de OpenGL, o 0 si falla
+     */
+    static unsigned int loadMaterialTexture(
+        aiMaterial *mat,
+        const aiScene *scene,
+        const std::string &directory,
+        int textureType);
+
+    /**
+     * @brief Carga una textura embebida desde memoria
+     */
+    static unsigned int loadEmbeddedTexture(
+        const aiTexture *texture);
   };
 
 } // namespace Utils

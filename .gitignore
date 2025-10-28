@@ -1,1 +1,10 @@
-./simulador/build/
+# Ignorar archivos compilados
+simulador/build/
+
+# Ignorar ejecutables
+*.o
+*.out
+
+# Ignorar archivos temporales
+*~
+*.swp

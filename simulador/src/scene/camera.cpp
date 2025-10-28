@@ -60,27 +60,22 @@ namespace Scene {
         front.z = sin(glm::radians(yaw_)) * cos(glm::radians(pitch_));
         front_ = glm::normalize(front);
         
-        // Para simulador de vuelo, usar un vector de referencia más estable
-        // Evitar world_up cuando pitch es extremo
-        glm::vec3 reference_up = glm::vec3(0.0f, 1.0f, 0.0f);
+        // Para permitir loops completos sin inversión de cámara,
+        // usar un vector de referencia que dependa del yaw, no del world up
+        glm::vec3 reference_right;
+        reference_right.x = -sin(glm::radians(yaw_));
+        reference_right.y = 0.0f;
+        reference_right.z = cos(glm::radians(yaw_));
+        reference_right = glm::normalize(reference_right);
         
-        // Si estamos casi verticales, usar un vector de referencia diferente
-        if (abs(glm::dot(front_, reference_up)) > 0.99f) {
-            // Usar vector Z cuando estamos muy verticales
-            reference_up = glm::vec3(0.0f, 0.0f, 1.0f);
-        }
-        
-        // Calcular Right vector sin problemas de gimbal lock
-        right_ = glm::normalize(glm::cross(front_, reference_up));
-        
-        // Calcular Up vector base (sin roll aún)
-        glm::vec3 base_up = glm::normalize(glm::cross(right_, front_));
+        // Calcular Up vector base usando el reference_right
+        glm::vec3 base_up = glm::normalize(glm::cross(reference_right, front_));
         
         // Aplicar roll (inclinación lateral) para simulador de vuelo
         glm::mat4 roll_matrix = glm::rotate(glm::mat4(1.0f), glm::radians(roll_), front_);
         up_ = glm::vec3(roll_matrix * glm::vec4(base_up, 0.0f));
         
-        // Recalcular right_ después del roll para mantener ortogonalidad
+        // Calcular right_ después del roll para mantener ortogonalidad
         right_ = glm::normalize(glm::cross(front_, up_));
         
         matrices_dirty_ = true;
@@ -214,44 +209,23 @@ namespace Scene {
     }
 
     void Camera::processKeyboardInput(GLFWwindow* window, float delta_time) {
-        float velocity = config_.movement_speed * delta_time;
-        
-        // Controles de simulador de vuelo
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            move(CameraMovement::FORWARD, delta_time);  // Solo W para acelerar adelante
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            move(CameraMovement::ROLL_LEFT, delta_time);  // A para inclinar izquierda
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            move(CameraMovement::ROLL_RIGHT, delta_time); // D para inclinar derecha
-        
-        // Mantener controles verticales para casos especiales
-        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-            move(CameraMovement::DOWN, delta_time);
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-            move(CameraMovement::UP, delta_time);
+        // TODOS LOS CONTROLES DESHABILITADOS
+        // No hay entrada de teclado para movimiento de cámara
     }
 
     void Camera::processMouseMovement(double xpos, double ypos) {
+        // CONTROL DE MOUSE DESHABILITADO
+        // Actualizar posición del mouse sin aplicar rotación
         if (first_mouse_) {
             last_x_ = static_cast<float>(xpos);
             last_y_ = static_cast<float>(ypos);
             first_mouse_ = false;
         }
-
-        float xoffset = static_cast<float>(xpos) - last_x_;
-        float yoffset = last_y_ - static_cast<float>(ypos); // Reversed since y-coordinates go from bottom to top
         
         last_x_ = static_cast<float>(xpos);
         last_y_ = static_cast<float>(ypos);
-
-        xoffset *= config_.mouse_sensitivity;
-        yoffset *= config_.mouse_sensitivity;
-
-        if (config_.type == CameraType::ORBITAL) {
-            orbitAroundTarget(xoffset, yoffset);
-        } else {
-            rotate(xoffset, yoffset);
-        }
+        
+        // No se aplica rotación (pitch/yaw deshabilitados)
     }
 
     void Camera::processMouseScroll(float yoffset) {

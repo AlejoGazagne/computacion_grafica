@@ -4,6 +4,7 @@ layout (location = 1) in vec3 aNormal;
 layout (location = 2) in vec2 aTexCoords;
 layout (location = 3) in vec3 aTangent;
 layout (location = 4) in vec3 aBitangent;
+layout (location = 5) in vec3 aColor;
 
 out vec3 ourColor;
 out vec3 FragPos;
@@ -20,5 +21,5 @@ void main() {
     TexCoords = aTexCoords;
     
     gl_Position = projection * view * vec4(FragPos, 1.0);
-    ourColor = vec3(0.5, 0.5, 0.5); // Color por defecto cuando no hay textura
+    ourColor = aColor; // Usar color del vértice (del material)
 }

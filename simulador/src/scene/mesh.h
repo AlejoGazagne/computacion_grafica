@@ -22,15 +22,16 @@ namespace Graphics
             glm::vec2 texture_coords;
             glm::vec3 tangent;
             glm::vec3 bitangent;
+            glm::vec3 color; // Color del vértice (para materiales)
 
             Vertex() = default;
             Vertex(const glm::vec3 &pos)
                 : position(pos), normal(0.0f, 1.0f, 0.0f), texture_coords(0.0f, 0.0f),
-                  tangent(1.0f, 0.0f, 0.0f), bitangent(0.0f, 0.0f, 1.0f) {}
+                  tangent(1.0f, 0.0f, 0.0f), bitangent(0.0f, 0.0f, 1.0f), color(1.0f, 1.0f, 1.0f) {}
 
             Vertex(const glm::vec3 &pos, const glm::vec3 &norm, const glm::vec2 &tex)
                 : position(pos), normal(norm), texture_coords(tex),
-                  tangent(1.0f, 0.0f, 0.0f), bitangent(0.0f, 0.0f, 1.0f) {}
+                  tangent(1.0f, 0.0f, 0.0f), bitangent(0.0f, 0.0f, 1.0f), color(1.0f, 1.0f, 1.0f) {}
         };
 
         // Estructura para datos de instancia (para instancing)
@@ -55,6 +56,10 @@ namespace Graphics
             // Instancing
             std::unique_ptr<VertexBuffer> instance_vbo_;
             unsigned int instance_count_;
+
+            // Textura del mesh
+            unsigned int texture_id_;
+            bool has_texture_;
 
             std::string name_;
             bool initialized_;
@@ -101,6 +106,11 @@ namespace Graphics
             bool isInitialized() const { return initialized_; }
             size_t getVertexCount() const { return vertices_.size(); }
             size_t getTriangleCount() const { return indices_.size() / 3; }
+
+            // Textura
+            void setTexture(unsigned int texture_id) { texture_id_ = texture_id; has_texture_ = true; }
+            unsigned int getTextureID() const { return texture_id_; }
+            bool hasTexture() const { return has_texture_; }
 
             // Utilidades
             void calculateNormals();
