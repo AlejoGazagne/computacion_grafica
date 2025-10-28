@@ -11,16 +11,16 @@ namespace Graphics
 
         // === Implementación de Mesh ===
 
-        Mesh::Mesh() : name_("unnamed_mesh"), initialized_(false), instance_count_(0)
+        Mesh::Mesh() : name_("unnamed_mesh"), initialized_(false), instance_count_(0), texture_id_(0), has_texture_(false)
         {
         }
 
-        Mesh::Mesh(const std::string &name) : name_(name), initialized_(false), instance_count_(0)
+        Mesh::Mesh(const std::string &name) : name_(name), initialized_(false), instance_count_(0), texture_id_(0), has_texture_(false)
         {
         }
 
         Mesh::Mesh(const std::vector<Vertex> &vertices, const std::vector<unsigned int> &indices, const std::string &name)
-            : vertices_(vertices), indices_(indices), name_(name.empty() ? "unnamed_mesh" : name), initialized_(false), instance_count_(0)
+            : vertices_(vertices), indices_(indices), name_(name.empty() ? "unnamed_mesh" : name), initialized_(false), instance_count_(0), texture_id_(0), has_texture_(false)
         {
             setupMesh();
         }
@@ -29,10 +29,13 @@ namespace Graphics
             : vertices_(std::move(other.vertices_)), indices_(std::move(other.indices_)),
               vao_(std::move(other.vao_)), vbo_(std::move(other.vbo_)), ebo_(std::move(other.ebo_)),
               instance_vbo_(std::move(other.instance_vbo_)), instance_count_(other.instance_count_),
-              name_(std::move(other.name_)), initialized_(other.initialized_)
+              name_(std::move(other.name_)), initialized_(other.initialized_),
+              texture_id_(other.texture_id_), has_texture_(other.has_texture_)
         {
             other.initialized_ = false;
             other.instance_count_ = 0;
+            other.texture_id_ = 0;
+            other.has_texture_ = false;
         }
 
         Mesh &Mesh::operator=(Mesh &&other) noexcept
@@ -48,8 +51,12 @@ namespace Graphics
                 instance_count_ = other.instance_count_;
                 name_ = std::move(other.name_);
                 initialized_ = other.initialized_;
+                texture_id_ = other.texture_id_;
+                has_texture_ = other.has_texture_;
                 other.initialized_ = false;
                 other.instance_count_ = 0;
+                other.texture_id_ = 0;
+                other.has_texture_ = false;
             }
             return *this;
         }
@@ -86,6 +93,9 @@ namespace Graphics
 
             // Bitangente (location = 4)
             vao_->addFloatAttribute(4, 3, sizeof(Vertex), (void *)offsetof(Vertex, bitangent));
+
+            // Color del vértice (location = 5)
+            vao_->addFloatAttribute(5, 3, sizeof(Vertex), (void *)offsetof(Vertex, color));
 
             // Configurar EBO si hay índices
             if (!indices_.empty())
@@ -220,6 +230,13 @@ namespace Graphics
             if (!initialized_)
                 return;
 
+            // Activar textura si está disponible
+            if (has_texture_)
+            {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, texture_id_);
+            }
+
             vao_->bind();
 
             if (vao_->hasIndexBuffer())
@@ -232,6 +249,12 @@ namespace Graphics
             }
 
             vao_->unbind();
+            
+            // Desactivar textura
+            if (has_texture_)
+            {
+                glBindTexture(GL_TEXTURE_2D, 0);
+            }
         }
 
         void Mesh::drawInstanced(unsigned int count) const
@@ -589,25 +612,25 @@ namespace Graphics
             // Configurar atributos de instancia en el VAO
             vao_->bind();
 
-            // Atributo 5: posición de instancia (vec3)
-            vao_->addFloatAttribute(5, 3, sizeof(InstanceAttributes),
-                                    (void *)offsetof(InstanceAttributes, instance_position));
-            glVertexAttribDivisor(5, 1);
-
-            // Atributo 6: escala de instancia (vec3)
+            // Atributo 6: posición de instancia (vec3)
             vao_->addFloatAttribute(6, 3, sizeof(InstanceAttributes),
-                                    (void *)offsetof(InstanceAttributes, instance_scale));
+                                    (void *)offsetof(InstanceAttributes, instance_position));
             glVertexAttribDivisor(6, 1);
 
-            // Atributo 7: rotación Y de instancia (float)
-            vao_->addFloatAttribute(7, 1, sizeof(InstanceAttributes),
-                                    (void *)offsetof(InstanceAttributes, instance_rotation_y));
+            // Atributo 7: escala de instancia (vec3)
+            vao_->addFloatAttribute(7, 3, sizeof(InstanceAttributes),
+                                    (void *)offsetof(InstanceAttributes, instance_scale));
             glVertexAttribDivisor(7, 1);
 
-            // Atributo 8: billboard flag (float)
+            // Atributo 8: rotación Y de instancia (float)
             vao_->addFloatAttribute(8, 1, sizeof(InstanceAttributes),
-                                    (void *)offsetof(InstanceAttributes, instance_billboard));
+                                    (void *)offsetof(InstanceAttributes, instance_rotation_y));
             glVertexAttribDivisor(8, 1);
+
+            // Atributo 9: billboard flag (float)
+            vao_->addFloatAttribute(9, 1, sizeof(InstanceAttributes),
+                                    (void *)offsetof(InstanceAttributes, instance_billboard));
+            glVertexAttribDivisor(9, 1);
 
             vao_->unbind();
 

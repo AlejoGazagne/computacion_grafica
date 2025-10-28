@@ -34,8 +34,12 @@
 #include "scene/camera.h"
 #include "scene/terrain.h"
 #include "scene/model.h"
+<<<<<<< Updated upstream
 #include "scene/instancing.h"
 #include "utils/obj_loader.h"
+=======
+#include "utils/assimp_loader.h"
+>>>>>>> Stashed changes
 
 // Input System
 #include "input/input_manager.h"
@@ -426,6 +430,7 @@ private:
 
         // ===== CARGAR MODELOS =====
 
+<<<<<<< Updated upstream
         // Cargar árbol con instancing
         tree_model_ = std::make_unique<Model>("tree_forest");
         {
@@ -465,6 +470,9 @@ private:
 
         // Cargar avión
         plane_model_ = std::make_unique<Model>("player_plane");
+=======
+        // Cargar avión usando Assimp con color gris uniforme
+>>>>>>> Stashed changes
         {
             auto plane_data = ::Utils::OBJLoader::loadOBJ("textures/plane/Jet_Lowpoly.obj");
             if (!plane_data.vertices.empty())
