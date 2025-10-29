@@ -31,6 +31,7 @@ SKYBOX_CXX = graphics/skybox/skybox
 MESH_CXX = scene/mesh
 CAMERA_CXX = scene/camera
 TERRAIN_CXX = scene/terrain
+CHUNKED_TERRAIN_CXX = scene/chunked_terrain
 MODEL_CXX = scene/model
 INPUT_MANAGER_CXX = input/input_manager
 BANK_ANGLE_CXX = ui/bank_angle
@@ -55,6 +56,7 @@ ADDITIONAL_OBJS = \
 	$(BUILD_DIR)/$(MESH_CXX).o \
 	$(BUILD_DIR)/$(CAMERA_CXX).o \
 	$(BUILD_DIR)/$(TERRAIN_CXX).o \
+	$(BUILD_DIR)/$(CHUNKED_TERRAIN_CXX).o \
 	$(BUILD_DIR)/$(MODEL_CXX).o \
 	$(BUILD_DIR)/$(INPUT_MANAGER_CXX).o \
 	$(BUILD_DIR)/$(BANK_ANGLE_CXX).o \
