@@ -33,6 +33,7 @@
 #include "scene/mesh.h"
 #include "scene/camera.h"
 #include "scene/terrain.h"
+#include "scene/chunked_terrain.h"
 #include "scene/model.h"
 #include "utils/assimp_loader.h"
 
@@ -78,7 +79,7 @@ private:
     std::unique_ptr<Model> plane_model_;
     std::unique_ptr<CameraController> camera_controller_;
     std::unique_ptr<Skybox> skybox_;
-    std::unique_ptr<Terrain> terrain_;
+    std::unique_ptr<ChunkedTerrain> chunked_terrain_;
 
     // Lighting System
     std::unique_ptr<LightManager> light_manager_;
@@ -125,8 +126,8 @@ private:
         bool f1_pressed = false;
         bool num2_pressed = false;
         bool c_pressed = false;
-    bool x_pressed = false; // (sin uso)
-    bool y_pressed = false; // (sin uso)
+        bool x_pressed = false; // (sin uso)
+        bool y_pressed = false; // (sin uso)
     } input_state_;
 
 public:
@@ -368,16 +369,35 @@ private:
             return false;
         }
 
-        // Crear terrain
-        terrain_ = std::make_unique<Terrain>("main_terrain");
-        if (!terrain_->initialize())
+        // Crear terreno por chunks (cada chunk del tamaño definido en TerrainConfig)
+        chunked_terrain_ = std::make_unique<ChunkedTerrain>("world_terrain");
         {
-            std::cerr << "Failed to create terrain" << std::endl;
-            return false;
+            // Tomamos los parámetros por defecto de TerrainConfig como base del chunk
+            Scene::TerrainConfig base_cfg; // usa los defaults de terrain.h
+            Scene::ChunkedTerrainConfig ctc{};
+            ctc.chunk_width = base_cfg.width;
+            ctc.chunk_depth = base_cfg.depth;
+            ctc.y_position = base_cfg.y_position;
+            ctc.width_segments = base_cfg.width_segments;
+            ctc.depth_segments = base_cfg.depth_segments;
+            ctc.texture_repeat = base_cfg.texture_repeat;
+            ctc.use_perlin_noise = base_cfg.use_perlin_noise;
+            // Ajustes para más montañas y más grandes (en escala de mundo masivo)
+            ctc.noise_scale = 0.0015f;           // más frecuencia (menos liso)
+            ctc.height_multiplier = 1000.0f;     // picos más altos
+            ctc.noise_octaves = 9;               // más detalle fino
+            ctc.noise_seed = base_cfg.noise_seed;
+            ctc.view_radius_chunks = 1; // 3x3 chunks alrededor de la cámara
+
+            if (!chunked_terrain_->initialize(ctc))
+            {
+                std::cerr << "Failed to create chunked terrain" << std::endl;
+                return false;
+            }
         }
 
         // Obtener altura del terreno en el origen (donde queremos el cubo)
-        float terrain_height_at_origin = terrain_->getHeightAt(0.0f, 0.0f);
+        float terrain_height_at_origin = chunked_terrain_->getHeightAt(0.0f, 0.0f);
 
         // Configurar sistema de cámara
         camera_controller_ = std::make_unique<CameraController>();
@@ -392,7 +412,7 @@ private:
         float camera_height_offset = 15.0f; // Altura extra sobre el terreno
         float camera_x = 0.0f;
         float camera_z = 100.0f; // Un poco atrás del origen
-        float camera_terrain_height = terrain_->getHeightAt(camera_x, camera_z);
+    float camera_terrain_height = chunked_terrain_->getHeightAt(camera_x, camera_z);
 
         camera_config.position = glm::vec3(camera_x, camera_terrain_height + camera_height_offset, camera_z);
         camera_config.target = glm::vec3(0.0f, terrain_height_at_origin + 5.0f, 0.0f); // Mirar al cubo
@@ -899,7 +919,7 @@ private:
 
         // Configurar niebla
         shader->setBool("fogEnabled", app_state_.fog_enabled);
-        shader->setFloat("fogDensity", 0.0001f);
+        shader->setFloat("fogDensity", 0.0001f); // niebla más blanda en objetos/terreno
         // shader->setVec3("fogColor", glm::vec3(0.7f, 0.8f, 0.9f));
         shader->setVec3("fogColor", glm::vec3(0.85f, 0.90f, 0.95f));
 
@@ -909,8 +929,8 @@ private:
             light_manager_->applyToShader(shader);
         }
 
-        // Renderizar terrain
-        if (terrain_)
+        // Renderizar terreno por chunks
+        if (chunked_terrain_)
         {
             // Seleccionar shader según modo de terreno
             Shader *terrain_shader = shader;
@@ -929,7 +949,7 @@ private:
             terrain_shader->setMat4("projection", projection_matrix);
             terrain_shader->setVec3("viewPos", camera_pos);
             terrain_shader->setBool("fogEnabled", app_state_.fog_enabled);
-            terrain_shader->setFloat("fogDensity", 0.0001f);
+            terrain_shader->setFloat("fogDensity", 0.00006f); // niebla más blanda en terreno
             terrain_shader->setVec3("fogColor", glm::vec3(0.85f, 0.90f, 0.95f));
 
             // Configurar iluminación (solo para shader textured)
@@ -970,15 +990,17 @@ private:
             // Desactivar color uniforme para el terreno
             terrain_shader->setBool("useUniformColor", false);
 
-            // Configurar matriz modelo para el terrain (sin transformaciones)
+            // Actualizar y dibujar chunks (modelo identidad)
             glm::mat4 terrain_model = glm::mat4(1.0f);
             terrain_shader->setMat4("model", terrain_model);
 
-            terrain_->draw();
+            // Actualizar grid de chunks alrededor de la cámara
+            chunked_terrain_->update(camera_pos);
+            chunked_terrain_->draw();
         }
 
         // Renderizar cubo
-        if (cube_mesh_ && terrain_)
+        if (cube_mesh_ && chunked_terrain_)
         {
             shader->use();
             
@@ -1004,7 +1026,7 @@ private:
             // Posicionar el cubo SOBRE el terreno
             float cube_x = 0.0f;
             float cube_z = 0.0f;
-            float terrain_height = terrain_->getHeightAt(cube_x, cube_z);
+            float terrain_height = chunked_terrain_->getHeightAt(cube_x, cube_z);
             float cube_size = 4.0f;                    // Tamaño del cubo escalado
             float cube_y = terrain_height + cube_size; // Cubo sentado sobre el terreno
 
@@ -1061,7 +1083,7 @@ private:
         plane_model_.reset();
         camera_controller_.reset();
         skybox_.reset();
-        terrain_.reset();
+    chunked_terrain_.reset();
 
         // Limpiar contexto
         context_.reset();

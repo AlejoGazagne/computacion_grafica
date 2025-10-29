@@ -194,10 +194,13 @@ namespace Graphics {
             shader->setMat4("view", skybox_view);
             shader->setMat4("projection", projection);
             
-            // Configurar niebla para el skybox
+            // Configurar niebla para el skybox (alineada con el terreno)
             shader->setBool("fogEnabled", fog_enabled);
-            shader->setFloat("fogDensity", 0.05f);
-            shader->setVec3("fogColor", glm::vec3(0.7f, 0.8f, 0.9f));
+            shader->setFloat("fogDensity", 0.0001f);
+            shader->setVec3("fogColor", glm::vec3(0.85f, 0.90f, 0.95f));
+            shader->setFloat("skyFogScale", 8000.0f);    // menor impacto global
+            shader->setFloat("skyFogMax", 0.8f);         // tope más bajo
+            shader->setFloat("skyFogExponent", 2.5f);    // banda más fina en el horizonte
             
             // Bind skybox texture
             glActiveTexture(GL_TEXTURE0);

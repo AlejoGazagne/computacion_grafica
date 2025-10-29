@@ -27,7 +27,7 @@ void FlightDynamicsManager::initialize() {
     
     // Posición inicial: sistema NED (North, East, Down)
     // Iniciamos a 5000m de altitud
-    init_state.intertial_position = glm::vec3(0.0f, 0.0f, -500.0f);  // [m]
+    init_state.intertial_position = glm::vec3(0.0f, 0.0f, -1000.0f);  // [m]
     
     // Velocidad inicial: vuelo nivelado a ~150 m/s
     init_state.boby_velocity = glm::vec3(149.998f, 0.0f, -0.36675f);  // [m/s]
