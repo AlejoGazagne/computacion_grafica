@@ -39,6 +39,7 @@ PITCH_LADDER_CXX = ui/pitch_ladder
 TEXT_RENDERER_CXX = ui/text_renderer
 TEXT_RENDERER_ATLAS_CXX = ui/text_renderer_atlas
 ASSIMP_LOADER_CXX = utils/assimp_loader
+HUD_INSTRUMENTBASE_CXX = include/hud/instrumentbase
 
 # Physics system (FDM)
 FLIGHT_DYNAMICS_CXX = physics/flight_dynamics
@@ -64,6 +65,7 @@ ADDITIONAL_OBJS = \
 	$(BUILD_DIR)/$(TEXT_RENDERER_CXX).o \
 	$(BUILD_DIR)/$(TEXT_RENDERER_ATLAS_CXX).o \
 	$(BUILD_DIR)/$(ASSIMP_LOADER_CXX).o \
+	$(BUILD_DIR)/$(HUD_INSTRUMENTBASE_CXX).o \
 	$(BUILD_DIR)/$(FLIGHT_DYNAMICS_CXX).o \
 	$(BUILD_DIR)/$(AERODYNAMICS_MODEL_CXX).o \
 	$(BUILD_DIR)/$(AIRCRAFT_DYNAMICS_CXX).o \
