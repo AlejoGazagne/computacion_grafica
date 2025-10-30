@@ -76,6 +76,15 @@ namespace Input
         bool keys_enabled_;
         bool mouse_enabled_;
         bool mouse_captured_;
+        // Joystick / gamepad
+        bool use_joystick_;
+        int joystick_id_;
+        bool joystick_present_;
+        std::vector<float> joystick_axes_;
+        std::vector<unsigned char> joystick_buttons_;
+        int joystick_axes_count_;
+        int joystick_buttons_count_;
+        float joystick_deadzone_;
 
         // Singleton
         static std::unique_ptr<InputManager> instance_;
@@ -137,6 +146,10 @@ namespace Input
         void setKeysEnabled(bool enabled) { keys_enabled_ = enabled; }
         bool areKeysEnabled() const { return keys_enabled_; }
 
+        // Joystick
+        void setUseJoystick(bool use);
+        bool isUsingJoystick() const;
+
         // Callbacks
         void addKeyCallback(const KeyCallback &callback);
         void addMouseCallback(const MouseCallback &callback);
@@ -194,6 +207,7 @@ namespace Input
         static constexpr int KEY_Y = GLFW_KEY_Y;
         static constexpr int KEY_C = GLFW_KEY_C;
         static constexpr int KEY_X = GLFW_KEY_X;
+        static constexpr int KEY_J = GLFW_KEY_J; // Toggle joystick controls
     };
 
     // Clase auxiliar para manejar acciones específicas

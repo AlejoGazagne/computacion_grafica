@@ -128,6 +128,7 @@ private:
         bool c_pressed = false;
         bool x_pressed = false; // (sin uso)
         bool y_pressed = false; // (sin uso)
+        bool j_pressed = false; // toggle joystick
     } input_state_;
 
 public:
@@ -752,6 +753,22 @@ private:
             input_state_.e_pressed = false;
         }
 
+        // J - Toggle Joystick controls (Logitech Extreme 3D Pro mapping)
+        if (input_manager.isKeyPressed(InputManager::KEY_J))
+        {
+            if (!input_state_.j_pressed)
+            {
+                bool use_js = !input_manager.isUsingJoystick();
+                input_manager.setUseJoystick(use_js);
+                std::cout << "Joystick controls " << (use_js ? "ENABLED" : "DISABLED") << std::endl;
+                input_state_.j_pressed = true;
+            }
+        }
+        else
+        {
+            input_state_.j_pressed = false;
+        }
+
         // F1 - Show/Hide Controls
         if (input_manager.isKeyPressed(InputManager::KEY_1))
         {
@@ -1118,6 +1135,7 @@ private:
         std::cout << "INFO:" << std::endl;
         std::cout << "1             : Show controls" << std::endl;
         std::cout << "ESC           : Exit" << std::endl;
+        std::cout << "J             : Toggle joystick controls (Logitech Extreme 3D Pro)" << std::endl;
         std::cout << "======================================" << std::endl;
     }
 };
