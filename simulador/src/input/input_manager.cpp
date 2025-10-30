@@ -10,7 +10,9 @@ namespace Input {
     // === Implementación de InputManager ===
 
     InputManager::InputManager() 
-        : window_(nullptr), keys_enabled_(true), mouse_enabled_(true), mouse_captured_(false) {
+                : window_(nullptr), keys_enabled_(true), mouse_enabled_(true), mouse_captured_(false),
+                    use_joystick_(false), joystick_id_(GLFW_JOYSTICK_1), joystick_present_(false),
+                    joystick_axes_count_(0), joystick_buttons_count_(0), joystick_deadzone_(0.1f) {
     }
 
     InputManager& InputManager::getInstance() {
@@ -40,6 +42,11 @@ namespace Input {
         mouse_state_.last_y = mouse_state_.y;
         
         std::cout << "InputManager initialized successfully" << std::endl;
+        // Comprobar joystick inicialmente
+        joystick_present_ = glfwJoystickPresent(joystick_id_) == GLFW_TRUE;
+        if (joystick_present_) {
+            std::cout << "Joystick detected: id=" << joystick_id_ << std::endl;
+        }
         return true;
     }
 
@@ -129,9 +136,84 @@ namespace Input {
         // Reset mouse delta y scroll después de procesar
         resetMouseDelta();
         resetScroll();
+
+        // --- Poll joystick si está habilitado ---
+        if (use_joystick_) {
+            joystick_present_ = (glfwJoystickPresent(joystick_id_) == GLFW_TRUE);
+            if (joystick_present_) {
+                int axes_count = 0;
+                const float* axes = glfwGetJoystickAxes(joystick_id_, &axes_count);
+                if (axes && axes_count > 0) {
+                    joystick_axes_.assign(axes, axes + axes_count);
+                    joystick_axes_count_ = axes_count;
+                } else {
+                    joystick_axes_.clear();
+                    joystick_axes_count_ = 0;
+                }
+
+                int buttons_count = 0;
+                const unsigned char* buttons = glfwGetJoystickButtons(joystick_id_, &buttons_count);
+                if (buttons && buttons_count > 0) {
+                    joystick_buttons_.assign(buttons, buttons + buttons_count);
+                    joystick_buttons_count_ = buttons_count;
+                } else {
+                    joystick_buttons_.clear();
+                    joystick_buttons_count_ = 0;
+                }
+            }
+        }
     }
 
     bool InputManager::isKeyPressed(int key) const {
+        // Si se está usando joystick, emular ciertas teclas según ejes
+        if (use_joystick_) {
+            // Mapeo aproximado para Logitech Extreme 3D Pro:
+            // axis 0 -> X (roll)  : LEFT/RIGHT
+            // axis 1 -> Y (pitch) : UP/DOWN (invertido)
+            // axis 2 -> twist (rudder) : A/D
+            // axis 3 -> throttle : W/S
+            auto checkAxis = [this](int axis_index) -> float {
+                if (axis_index < 0 || axis_index >= joystick_axes_count_) return 0.0f;
+                return joystick_axes_[axis_index];
+            };
+
+            const float dead = joystick_deadzone_;
+
+            if (key == KEY_LEFT) {
+                float v = checkAxis(0);
+                return v < -dead;
+            }
+            if (key == KEY_RIGHT) {
+                float v = checkAxis(0);
+                return v > dead;
+            }
+            if (key == KEY_UP) {
+                float v = checkAxis(1);
+                return v < -dead; // joystick up usually negative
+            }
+            if (key == KEY_DOWN) {
+                float v = checkAxis(1);
+                return v > dead;
+            }
+            if (key == KEY_A) {
+                float v = checkAxis(2);
+                return v < -dead; // twist left
+            }
+            if (key == KEY_D) {
+                float v = checkAxis(2);
+                return v > dead; // twist right
+            }
+            if (key == KEY_W) {
+                float v = checkAxis(3);
+                return v > dead; // throttle axis mapping (assumed)
+            }
+            if (key == KEY_S) {
+                float v = checkAxis(3);
+                return v < -dead;
+            }
+            // Para otras teclas, fallback a teclado
+        }
+
         auto it = key_states_.find(key);
         return (it != key_states_.end()) && 
                (it->second == KeyState::PRESSED || it->second == KeyState::JUST_PRESSED || it->second == KeyState::HELD);
@@ -237,6 +319,20 @@ namespace Input {
         } else if (action == GLFW_RELEASE) {
             input.key_states_[key] = KeyState::JUST_RELEASED;
         }
+    }
+
+    void InputManager::setUseJoystick(bool use) {
+        use_joystick_ = use;
+        joystick_present_ = (glfwJoystickPresent(joystick_id_) == GLFW_TRUE);
+        if (use_joystick_) {
+            std::cout << "Joystick mode enabled" << std::endl;
+        } else {
+            std::cout << "Joystick mode disabled" << std::endl;
+        }
+    }
+
+    bool InputManager::isUsingJoystick() const {
+        return use_joystick_;
     }
 
     void InputManager::mouseCallbackStatic(GLFWwindow* window, double xpos, double ypos) {
