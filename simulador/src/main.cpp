@@ -40,10 +40,19 @@
 // Input System
 #include "input/input_manager.h"
 
-// UI System
-#include "ui/bank_angle.h"
-#include "ui/pitch_ladder.h"
+// HUD System
+#include "hud/components/bank_angle.h"
+#include "hud/components/pitch_ladder.h"
+#include "hud/instruments/altimeter.h"
+#include "hud/instruments/speed_indicator.h"
+#include "hud/instruments/vertical_speed_indicator.h"
+#include "hud/instruments/waypoint_indicator.h"
 #include "hud/huddef.h"
+
+// Mission System
+#include "mission/mission_definition.h"
+#include "mission/mission_runtime.h"
+#include "mission/waypoint_system.h"
 
 // Physics System
 #include "physics/flight_dynamics.h"
@@ -88,6 +97,14 @@ private:
     // UI Systems
     std::unique_ptr<BankAngleIndicator> bank_angle_indicator_;
     std::unique_ptr<PitchLadder> pitch_ladder_;
+    std::unique_ptr<UI::Altimeter> altimeter_;
+    std::unique_ptr<UI::SpeedIndicator> speed_indicator_;
+    std::unique_ptr<UI::VerticalSpeedIndicator> vsi_;
+    std::unique_ptr<hud::WaypointIndicator> waypoint_indicator_;
+
+    // Mission System
+    std::unique_ptr<Mission::MissionRuntime> mission_runtime_;
+    std::unique_ptr<Mission::WaypointSystem> waypoint_system_;
 
     // Physics System
     std::unique_ptr<Physics::FlightDynamicsManager> flight_dynamics_;
@@ -495,11 +512,71 @@ private:
 
         bank_angle_indicator_ = std::make_unique<BankAngleIndicator>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), bank_shader);
         pitch_ladder_ = std::make_unique<PitchLadder>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), ladder_shader);
+        altimeter_ = std::make_unique<UI::Altimeter>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), ladder_shader);
+        speed_indicator_ = std::make_unique<UI::SpeedIndicator>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), ladder_shader);
+        vsi_ = std::make_unique<UI::VerticalSpeedIndicator>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), ladder_shader);
+        waypoint_indicator_ = std::make_unique<hud::WaypointIndicator>(glm::vec2(-0.25f, 0.50f), glm::vec2(0.35f, 0.35f), ladder_shader);
+
+        // Layout: left speed tape, center ladder, right altimeter, VSI left of altimeter
+        if (speed_indicator_)
+        {
+            // Move closer to edge and shrink more
+            speed_indicator_->setAnchorLeftX(-0.92f);
+            speed_indicator_->setTickLength(0.035f);
+            speed_indicator_->setStepNdc(0.038f); // slightly tighter
+            speed_indicator_->setVisibleSteps(10);
+            speed_indicator_->setBoxSize(0.16f, 0.06f);
+        }
+        if (altimeter_)
+        {
+            // Move closer to edge and shrink more
+            altimeter_->setAnchorRightX(0.92f);
+            altimeter_->setTickLength(0.035f);
+            altimeter_->setStepNdc(0.038f);
+            altimeter_->setVisibleSteps(10);
+            altimeter_->setBoxSize(0.18f, 0.06f);
+            altimeter_->setChevronWidth(0.015f);
+        }
+        if (vsi_)
+        {
+            // Reduce scale height and box
+            vsi_->setLineX(0.46f);
+            vsi_->setScaleHeight(0.70f);
+            vsi_->setTickLengths(0.018f, 0.035f);
+            vsi_->setBoxSize(0.09f, 0.040f);
+        }
 
         bank_angle_indicator_->initialize();
         pitch_ladder_->initialize();
+        altimeter_->initialize();
+        speed_indicator_->initialize();
+        vsi_->initialize();
+        waypoint_indicator_->initialize();
+
+        // Inicializar sistema de misiones
+        mission_runtime_ = std::make_unique<Mission::MissionRuntime>();
+        waypoint_system_ = std::make_unique<Mission::WaypointSystem>();
+        waypoint_system_->initialize();
+
+        // Crear una misión de prueba
+        Mission::MissionDefinition test_mission;
+        test_mission.id = "test_01";
+        test_mission.name = "Vuelo de Entrenamiento";
+        test_mission.description = "Recorre los waypoints básicos";
+        test_mission.category = "training";
+        test_mission.difficulty = 1;
+
+        // Agregar waypoints de ejemplo
+        test_mission.waypoints.push_back(Mission::WaypointDef(glm::vec3(100.0f, 550.0f, -100.0f), "Alpha"));
+        test_mission.waypoints.push_back(Mission::WaypointDef(glm::vec3(200.0f, 550.0f, -200.0f), "Bravo"));
+        test_mission.waypoints.push_back(Mission::WaypointDef(glm::vec3(0.0f, 550.0f, -300.0f), "Charlie"));
+
+        // Iniciar la misión
+        mission_runtime_->startMission(test_mission);
+        waypoint_system_->loadFromMission(test_mission);
 
         std::cout << "HUD instruments initialized successfully" << std::endl;
+        std::cout << "Mission system initialized with test mission" << std::endl;
         return true;
     }
 
@@ -896,15 +973,45 @@ private:
             hud_fd.altitude = phys_fd.altitude;
             hud_fd.speed = phys_fd.speed;
             hud_fd.vertical_speed = phys_fd.vertical_speed;
+            hud_fd.airspeed = phys_fd.speed; // usar speed como airspeed
+            hud_fd.position = aircraft_position;
             hud_fd.waypoint.latitude = phys_fd.waypoint.latitude;
             // Mapear longitude -> longitud (nombre distinto en huddef)
             hud_fd.waypoint.longitud = phys_fd.waypoint.longitude;
             hud_fd.waypoint.altitude = phys_fd.waypoint.altitude;
 
+            // Actualizar sistema de waypoints
+            if (waypoint_system_ && mission_runtime_)
+            {
+                waypoint_system_->update(aircraft_position, hud_fd, *mission_runtime_);
+                mission_runtime_->updateProgress(hud_fd, app_state_.delta_time);
+                mission_runtime_->updateMetrics(hud_fd, app_state_.delta_time);
+            }
+
             if (bank_angle_indicator_)
+            {
                 bank_angle_indicator_->update(hud_fd);
+            }
             if (pitch_ladder_)
+            {
                 pitch_ladder_->update(hud_fd);
+            }
+            if (altimeter_)
+            {
+                altimeter_->update(hud_fd);
+            }
+            if (speed_indicator_)
+            {
+                speed_indicator_->update(hud_fd);
+            }
+            if (vsi_)
+            {
+                vsi_->update(hud_fd);
+            }
+            if (waypoint_indicator_)
+            {
+                waypoint_indicator_->update(hud_fd);
+            }
         }
     }
 
@@ -1082,6 +1189,12 @@ private:
             plane_model_->render(shader);
         }
 
+        // Renderizar waypoints 3D
+        if (waypoint_system_ && mission_runtime_)
+        {
+            waypoint_system_->render(view_matrix, projection_matrix, *mission_runtime_);
+        }
+
         // Renderizar HUD (siempre en primera persona)
         if (bank_angle_indicator_)
         {
@@ -1090,6 +1203,22 @@ private:
         if (pitch_ladder_)
         {
             pitch_ladder_->render();
+        }
+        if (altimeter_)
+        {
+            altimeter_->render();
+        }
+        if (speed_indicator_)
+        {
+            speed_indicator_->render();
+        }
+        if (vsi_)
+        {
+            vsi_->render();
+        }
+        if (waypoint_indicator_)
+        {
+            waypoint_indicator_->render();
         }
     }
 
@@ -1104,11 +1233,37 @@ private:
         auto &input_manager = InputManager::getInstance();
         input_manager.shutdown();
 
-        auto &shader_manager = ShaderManager::getInstance();
-        shader_manager.clear();
-
         auto &texture_manager = TextureManager::getInstance();
         texture_manager.clear();
+
+        // Clean and release HUD instruments while GL context is alive
+        if (bank_angle_indicator_)
+            bank_angle_indicator_->clean();
+        if (pitch_ladder_)
+            pitch_ladder_->clean();
+        if (altimeter_)
+            altimeter_->clean();
+        if (speed_indicator_)
+            speed_indicator_->clean();
+        if (vsi_)
+            vsi_->clean();
+        if (waypoint_indicator_)
+            waypoint_indicator_->clean();
+
+        // Clean mission system
+        if (waypoint_system_)
+            waypoint_system_->cleanup();
+
+        bank_angle_indicator_.reset();
+        pitch_ladder_.reset();
+        altimeter_.reset();
+        speed_indicator_.reset();
+        vsi_.reset();
+        waypoint_indicator_.reset();
+
+        // After buffers are deleted, clear shaders while context is valid
+        auto &shader_manager = ShaderManager::getInstance();
+        shader_manager.clear();
 
         // Limpiar objetos de escena
         cube_mesh_.reset();
@@ -1117,7 +1272,7 @@ private:
         skybox_.reset();
         chunked_terrain_.reset();
 
-        // Limpiar contexto
+        // Limpiar contexto al final
         context_.reset();
 
         std::cout << "Engine shutdown complete" << std::endl;
