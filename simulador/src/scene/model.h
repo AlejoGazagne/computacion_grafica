@@ -5,6 +5,7 @@
 #include "../graphics/rendering/buffer_objects.h"
 #include "mesh.h"
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <memory>
 #include <vector>
 #include <string>
@@ -22,6 +23,7 @@ namespace Scene
     {
       glm::mat4 mat = glm::mat4(1.0f);
       mat = glm::translate(mat, position);
+      // Aplicar primero la rotación del movimiento
       mat = glm::rotate(mat, rotation.y, glm::vec3(0, 1, 0)); // Yaw
       mat = glm::rotate(mat, rotation.x, glm::vec3(1, 0, 0)); // Pitch
       mat = glm::rotate(mat, rotation.z, glm::vec3(0, 0, 1)); // Roll

@@ -44,7 +44,7 @@ SPEED_INDICATOR_CXX = hud/instruments/speed_indicator
 VERTICAL_SPEED_INDICATOR_CXX = hud/instruments/vertical_speed_indicator
 WAYPOINT_INDICATOR_CXX = hud/instruments/waypoint_indicator
 TEXT_RENDERER_CXX = hud/text_renderer
-ASSIMP_LOADER_CXX = utils/assimp_loader
+ASSIMP_LOADER_CXX = utils/model_loader
 HUD_INSTRUMENTBASE_CXX = include/hud/instrumentbase
 
 # Mission system

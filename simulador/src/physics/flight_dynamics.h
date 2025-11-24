@@ -68,6 +68,12 @@ public:
     glm::vec3 getEulerAngles() const;
 
     /**
+     * @brief Obtiene la dirección del movimiento (basada en la velocidad)
+     * @return Vector 3D con [pitch, yaw, roll] en grados basado en dirección de velocidad
+     */
+    glm::vec3 getVelocityDirection() const;
+
+    /**
      * @brief Obtiene la velocidad del avión
      * @return Velocidad en nudos (knots)
      */
