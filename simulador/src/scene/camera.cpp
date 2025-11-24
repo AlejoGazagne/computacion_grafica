@@ -54,6 +54,10 @@ namespace Scene {
 
     void Camera::updateCameraVectors() {
         // Calcular el nuevo vector Front usando ángulos de Euler
+        // Adaptado para sistema NED convertido a OpenGL:
+        // - El yaw ya viene con ajuste de -90° desde getEulerAngles()
+        // - NED North(0°) → OpenGL -Z, con ajuste se convierte en yaw=-90°
+        // - Esto significa que yaw=0° en OpenGL apunta hacia +X (Este en NED)
         glm::vec3 front;
         front.x = cos(glm::radians(yaw_)) * cos(glm::radians(pitch_));
         front.y = sin(glm::radians(pitch_));
@@ -159,6 +163,20 @@ namespace Scene {
         pitch_ = pitch;  // Sin restricciones para simulador de vuelo
         roll_ = roll;
         updateCameraVectors();
+    }
+
+    void Camera::setThirdPersonFollow(const glm::vec3& target_position,
+                                       float yaw, float pitch, float roll,
+                                       float distance, float height_offset) {
+        // Primero actualizamos la rotación para calcular front_
+        setRotation(yaw, pitch, roll);
+        
+        // Calculamos la posición de la cámara detrás del objetivo
+        glm::vec3 camera_position = target_position - front_ * distance + glm::vec3(0.0f, height_offset, 0.0f);
+        
+        // Actualizamos la posición
+        position_ = camera_position;
+        matrices_dirty_ = true;
     }
 
     void Camera::setPerspective(float fov, float aspect_ratio, float near_plane, float far_plane) {

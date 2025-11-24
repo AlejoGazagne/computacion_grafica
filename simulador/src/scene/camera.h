@@ -116,6 +116,11 @@ namespace Scene {
         void setRotation(float yaw, float pitch);
         void setRotation(float yaw, float pitch, float roll);
         
+        // Tercera persona: configurar cámara para seguir un objetivo
+        void setThirdPersonFollow(const glm::vec3& target_position, 
+                                   float yaw, float pitch, float roll,
+                                   float distance, float height_offset);
+        
         const glm::vec3& getPosition() const { return position_; }
         const glm::vec3& getFront() const { return front_; }
         const glm::vec3& getUp() const { return up_; }
