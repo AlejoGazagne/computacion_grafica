@@ -141,6 +141,55 @@ glm::vec3 FlightDynamicsManager::getEulerAngles() const {
     return glm::vec3(pitch_deg, yaw_deg, roll_deg);
 }
 
+glm::vec3 FlightDynamicsManager::getVelocityDirection() const {
+    if (!fdm_solver_) {
+        return glm::vec3(0.0f);
+    }
+    
+    const dlfdm::AircraftState& state = fdm_solver_->getState();
+    
+    // Obtener velocidad en sistema mundial (NED)
+    // Primero transformamos la velocidad del cuerpo al sistema mundial
+    float phi = state.phi;
+    float theta = state.theta;
+    float psi = state.psi;
+    
+    float cp = glm::cos(phi);
+    float sp = glm::sin(phi);
+    float ct = glm::cos(theta);
+    float st = glm::sin(theta);
+    float cy = glm::cos(psi);
+    float sy = glm::sin(psi);
+    
+    glm::mat3 body_to_ned(
+        ct * cy,                    ct * sy,                   -st,
+        sp * st * cy - cp * sy,     sp * st * sy + cp * cy,    sp * ct,
+        cp * st * cy + sp * sy,     cp * st * sy - sp * cy,    cp * ct
+    );
+    
+    glm::vec3 velocity_ned = body_to_ned * state.boby_velocity;
+    
+    // Convertir a coordenadas OpenGL (coincidente con nedToWorldCoordinates)
+    // NED: X=North, Y=East, Z=Down
+    // OpenGL: X=East, Y=Up, Z=-North
+    glm::vec3 velocity_world(velocity_ned.y, -velocity_ned.z, -velocity_ned.x);
+    
+    // Calcular yaw basado en la dirección horizontal del movimiento
+    float yaw_rad = std::atan2(velocity_world.z, velocity_world.x);
+    float yaw_deg = yaw_rad * RAD_TO_DEG;
+    
+    // Calcular pitch basado en el componente vertical
+    float horizontal_speed = std::sqrt(velocity_world.x * velocity_world.x + velocity_world.z * velocity_world.z);
+    float pitch_rad = std::atan2(velocity_world.y, horizontal_speed);
+    float pitch_deg = pitch_rad * RAD_TO_DEG;
+    
+    // Roll se mantiene en 0 para que el modelo siempre esté "nivelado" con la dirección
+    float roll_deg = 0.0f;
+    
+    // Retornar [pitch, yaw, roll] en grados
+    return glm::vec3(pitch_deg, yaw_deg, roll_deg);
+}
+
 float FlightDynamicsManager::getSpeed() const {
     if (!fdm_solver_) {
         return 0.0f;

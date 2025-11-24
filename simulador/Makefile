@@ -38,7 +38,7 @@ BANK_ANGLE_CXX = ui/bank_angle
 PITCH_LADDER_CXX = ui/pitch_ladder
 TEXT_RENDERER_CXX = ui/text_renderer
 TEXT_RENDERER_ATLAS_CXX = ui/text_renderer_atlas
-ASSIMP_LOADER_CXX = utils/assimp_loader
+ASSIMP_LOADER_CXX = utils/model_loader
 HUD_INSTRUMENTBASE_CXX = include/hud/instrumentbase
 
 # Physics system (FDM)

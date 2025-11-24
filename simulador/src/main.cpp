@@ -31,14 +31,16 @@
 
 // Scene System
 #include "scene/mesh.h"
+#include "scene/model.h"
 #include "scene/camera.h"
 #include "scene/terrain.h"
 #include "scene/chunked_terrain.h"
-#include "scene/model.h"
-#include "utils/assimp_loader.h"
 
 // Input System
 #include "input/input_manager.h"
+
+// Utils
+#include "utils/model_loader.h"
 
 // UI System
 #include "ui/bank_angle.h"
@@ -77,7 +79,7 @@ private:
 
     // Scene Objects
     std::unique_ptr<Mesh> cube_mesh_;
-    std::unique_ptr<Model> plane_model_;
+    std::unique_ptr<Scene::Model> aircraft_model_;
     std::unique_ptr<CameraController> camera_controller_;
     std::unique_ptr<Skybox> skybox_;
     std::unique_ptr<ChunkedTerrain> chunked_terrain_;
@@ -107,9 +109,8 @@ private:
 
     // Third-person camera state
     bool third_person_mode_ = false;
-    float third_person_distance_ = 80.0f; // distancia detrás del avión (alejada)
+    float third_person_distance_ = 70.0f; // distancia detrás del avión (alejada)
     float third_person_height_ = 10.0f;   // altura por encima del avión
-    // Sin offsets de orientación del modelo: la orientación proviene del import (Assimp)
 
     struct AircraftState
     {
@@ -208,7 +209,7 @@ public:
     void run()
     {
         std::cout << "\n=== Starting main loop ===" << std::endl;
-        printControls();
+        // printControls();
 
         while (!context_->shouldClose() && app_state_.running)
         {
@@ -418,33 +419,29 @@ private:
         // Capturar mouse inicialmente
         camera_controller_->setMouseCaptured(true);
 
-        // ===== CARGAR MODELOS =====
-
-        // Cargar avión usando Assimp (modelo GLB con texturas y colores propios)
-        {
-            plane_model_ = ::Utils::AssimpLoader::loadModel("textures/plane/f16.glb");
-
-            if (plane_model_)
-            {
-                // Posicionar el avión (seguirá la cámara)
-                plane_model_->getTransform().position = glm::vec3(0.0f, 5.0f, 0.0f);
-                plane_model_->getTransform().scale = glm::vec3(1.0f);
-                // Ocultar el avión en primera persona
-                plane_model_->setVisible(false);
-                std::cout << "Plane model (F16 GLB) loaded successfully with Assimp" << std::endl;
-            }
-            else
-            {
-                std::cerr << "Failed to load plane model (F16 GLB) with Assimp" << std::endl;
-            }
-        }
-
         // Inicializar skybox
         skybox_ = std::make_unique<Skybox>();
         if (!skybox_->initialize())
         {
             std::cerr << "Failed to initialize skybox" << std::endl;
             return false;
+        }
+
+        // Cargar modelo del avión
+        aircraft_model_ = ::Utils::ModelLoader::loadModel(
+            "textures/plane/Jet_Lowpoly.obj",
+            "jet_aircraft"
+        );
+        
+        if (!aircraft_model_)
+        {
+            std::cerr << "Warning: Failed to load aircraft model" << std::endl;
+        }
+        else
+        {
+            // Ajustar escala del modelo si es necesario
+            aircraft_model_->getTransform().scale = glm::vec3(2.0f);
+            std::cout << "Aircraft model loaded successfully" << std::endl;
         }
 
         std::cout << "Scene initialized:" << std::endl;
@@ -808,18 +805,10 @@ private:
                 if (third_person_mode_)
                 {
                     std::cout << "Third-person camera: ON" << std::endl;
-                    if (plane_model_)
-                    {
-                        plane_model_->setVisible(true);
-                    }
                 }
                 else
                 {
                     std::cout << "First-person camera: ON" << std::endl;
-                    if (plane_model_)
-                    {
-                        plane_model_->setVisible(false);
-                    }
                 }
 
                 input_state_.c_pressed = true;
@@ -839,52 +828,70 @@ private:
         if (flight_dynamics_)
         {
             flight_dynamics_->update(app_state_.delta_time);
+            Physics::FlightData phys_fd = flight_dynamics_->getFlightData();
 
             // Obtener datos de vuelo del modelo físico
-            Physics::FlightData phys_fd = flight_dynamics_->getFlightData();
             glm::vec3 aircraft_position = flight_dynamics_->getPosition();
             glm::vec3 euler_angles = flight_dynamics_->getEulerAngles();
+            
+            // Actualizar transform del modelo del avión
+            if (aircraft_model_)
+            {
+                // Obtener ángulos de Euler del sistema de física (en grados)
+                // x=Pitch, y=Yaw, z=Roll
+                glm::vec3 euler_angles = flight_dynamics_->getEulerAngles();
+                
+                // Ajustar orientación para el modelo 3D
+                // El modelo original apunta hacia +X.
+                // Al aplicar Yaw para alinearlo con la dirección de vuelo (que rota el eje X local hacia el frente),
+                // los ejes locales de rotación cambian de rol:
+                // - El eje X local (ahora alineado con el fuselaje) controla el ROLL.
+                // - El eje Z local (ahora alineado con las alas) controla el PITCH.
+                
+                float flight_pitch = euler_angles.x;
+                float flight_yaw = euler_angles.y;
+                float flight_roll = euler_angles.z;
 
+                // Asignación corregida:
+                // rotation.x recibe Roll
+                // rotation.y recibe Yaw (invertido para corrección de coordenadas)
+                // rotation.z recibe Pitch
+                
+                aircraft_model_->getTransform().rotation = glm::vec3(
+                    glm::radians(flight_roll),   // X actúa como Roll
+                    glm::radians(-flight_yaw),   // Y es Yaw
+                    glm::radians(flight_pitch)   // Z actúa como Pitch
+                );
+                
+                // Actualizar posición
+                aircraft_model_->getTransform().position = glm::vec3(aircraft_position.x, aircraft_position.y, aircraft_position.z);
+
+                // Debug ocasional
+                static float last_debug_time = 0.0f;
+                last_debug_time += app_state_.delta_time;
+                if (last_debug_time > 1.0f) {
+                    last_debug_time = 0.0f;
+                    // Descomentar para depurar si es necesario
+                    // std::cout << "CamYaw: " << euler_angles.y << " -> ModelYaw: " << model_yaw << std::endl;
+                }
+            }
+            
             // Actualizar cámara según la posición y orientación del avión
             Camera *camera = camera_controller_->getActiveCamera();
             if (camera)
             {
                 if (third_person_mode_)
                 {
-                    // Modo tercera persona: posicionar avión y cámara
-                    if (plane_model_)
-                    {
-                        auto &t = plane_model_->getTransform();
-                        t.position = aircraft_position;
-                        t.rotation.x = glm::radians(euler_angles.x); // pitch
-                        t.rotation.y = glm::radians(euler_angles.y); // yaw
-                        t.rotation.z = glm::radians(euler_angles.z); // roll
-
-                        // Calcular posición de la cámara detrás del avión
-                        glm::mat4 aircraft_transform = glm::mat4(1.0f);
-                        aircraft_transform = glm::translate(aircraft_transform, aircraft_position);
-                        aircraft_transform = glm::rotate(aircraft_transform, glm::radians(euler_angles.y), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
-                        aircraft_transform = glm::rotate(aircraft_transform, glm::radians(euler_angles.x), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-                        aircraft_transform = glm::rotate(aircraft_transform, glm::radians(euler_angles.z), glm::vec3(0.0f, 0.0f, 1.0f)); // roll
-
-                        // Offset de cámara en coordenadas del avión (detrás y arriba)
-                        glm::vec3 camera_offset = glm::vec3(0.0f, third_person_height_, third_person_distance_);
-                        glm::vec4 camera_pos_world = aircraft_transform * glm::vec4(camera_offset, 1.0f);
-
-                        camera->setPosition(glm::vec3(camera_pos_world));
-                        camera->setRotation(euler_angles.y, euler_angles.x, euler_angles.z);
-                    }
+                    // Modo tercera persona: la cámara sigue al avión
+                    camera->setThirdPersonFollow(aircraft_position, 
+                                                 euler_angles.y, euler_angles.x, euler_angles.z,
+                                                 third_person_distance_, third_person_height_);
                 }
                 else
                 {
                     // Modo primera persona: cámara en posición del avión
                     camera->setPosition(aircraft_position);
                     camera->setRotation(euler_angles.y, euler_angles.x, euler_angles.z);
-
-                    if (plane_model_)
-                    {
-                        plane_model_->setVisible(false);
-                    }
                 }
             }
 
@@ -1075,21 +1082,42 @@ private:
             shader->unuse();
         }
 
-        // Renderizar avión (solo en tercera persona)
-        if (plane_model_ && plane_model_->isVisible())
+        // Renderizar modelo del avión (solo en tercera persona)
+        if (aircraft_model_ && third_person_mode_)
         {
-            // Reutilizamos el shader básico ya configurado (view/projection/fog/lights)
-            plane_model_->render(shader);
+            shader->use();
+            aircraft_model_->render(shader);
+            shader->unuse();
         }
 
-        // Renderizar HUD (siempre en primera persona)
-        if (bank_angle_indicator_)
+        // Renderizar HUD (solo en primera persona)
+        if (!third_person_mode_)
         {
-            bank_angle_indicator_->render();
-        }
-        if (pitch_ladder_)
-        {
-            pitch_ladder_->render();
+            // Preparar datos de vuelo para el HUD
+            hud::FlightData flight_data;
+            flight_data.roll = camera->getRoll();
+            flight_data.pitch = camera->getPitch();
+            flight_data.heading = camera->getYaw();
+            
+            if (flight_dynamics_) {
+                flight_data.altitude = flight_dynamics_->getAltitude();
+                flight_data.speed = flight_dynamics_->getSpeed();
+            } else {
+                flight_data.altitude = 0.0f;
+                flight_data.speed = 0.0f;
+            }
+
+            if (bank_angle_indicator_)
+            {
+                bank_angle_indicator_->update(flight_data);
+                bank_angle_indicator_->render();
+            }
+
+            if (pitch_ladder_)
+            {
+                pitch_ladder_->update(flight_data);
+                pitch_ladder_->render();
+            }
         }
     }
 
@@ -1112,7 +1140,6 @@ private:
 
         // Limpiar objetos de escena
         cube_mesh_.reset();
-        plane_model_.reset();
         camera_controller_.reset();
         skybox_.reset();
         chunked_terrain_.reset();
