@@ -8,7 +8,10 @@ INC_DIRS = \
 	./src/graphics/skybox \
 	./src/scene \
 	./src/input \
-	./src/ui \
+	./src/hud \
+	./src/hud/components \
+	./src/hud/instruments \
+	./src/mission \
 	./src/utils \
 	./src/physics \
 	./include \
@@ -34,12 +37,20 @@ TERRAIN_CXX = scene/terrain
 CHUNKED_TERRAIN_CXX = scene/chunked_terrain
 MODEL_CXX = scene/model
 INPUT_MANAGER_CXX = input/input_manager
-BANK_ANGLE_CXX = ui/bank_angle
-PITCH_LADDER_CXX = ui/pitch_ladder
-TEXT_RENDERER_CXX = ui/text_renderer
-TEXT_RENDERER_ATLAS_CXX = ui/text_renderer_atlas
+BANK_ANGLE_CXX = hud/components/bank_angle
+PITCH_LADDER_CXX = hud/components/pitch_ladder
+ALTIMETER_CXX = hud/instruments/altimeter
+SPEED_INDICATOR_CXX = hud/instruments/speed_indicator
+VERTICAL_SPEED_INDICATOR_CXX = hud/instruments/vertical_speed_indicator
+WAYPOINT_INDICATOR_CXX = hud/instruments/waypoint_indicator
+TEXT_RENDERER_CXX = hud/text_renderer
 ASSIMP_LOADER_CXX = utils/model_loader
 HUD_INSTRUMENTBASE_CXX = include/hud/instrumentbase
+
+# Mission system
+MISSION_RUNTIME_CXX = mission/mission_runtime
+WAYPOINT_SYSTEM_CXX = mission/waypoint_system
+WAYPOINT_RENDERER_CXX = mission/waypoint_renderer
 
 # Physics system (FDM)
 FLIGHT_DYNAMICS_CXX = physics/flight_dynamics
@@ -62,14 +73,22 @@ ADDITIONAL_OBJS = \
 	$(BUILD_DIR)/$(INPUT_MANAGER_CXX).o \
 	$(BUILD_DIR)/$(BANK_ANGLE_CXX).o \
 	$(BUILD_DIR)/$(PITCH_LADDER_CXX).o \
+	$(BUILD_DIR)/$(ALTIMETER_CXX).o \
+	$(BUILD_DIR)/$(SPEED_INDICATOR_CXX).o \
+	$(BUILD_DIR)/$(VERTICAL_SPEED_INDICATOR_CXX).o \
+	$(BUILD_DIR)/$(WAYPOINT_INDICATOR_CXX).o \
 	$(BUILD_DIR)/$(TEXT_RENDERER_CXX).o \
-	$(BUILD_DIR)/$(TEXT_RENDERER_ATLAS_CXX).o \
 	$(BUILD_DIR)/$(ASSIMP_LOADER_CXX).o \
 	$(BUILD_DIR)/$(HUD_INSTRUMENTBASE_CXX).o \
+	$(BUILD_DIR)/$(MISSION_RUNTIME_CXX).o \
+	$(BUILD_DIR)/$(WAYPOINT_SYSTEM_CXX).o \
+	$(BUILD_DIR)/$(WAYPOINT_RENDERER_CXX).o \
 	$(BUILD_DIR)/$(FLIGHT_DYNAMICS_CXX).o \
 	$(BUILD_DIR)/$(AERODYNAMICS_MODEL_CXX).o \
 	$(BUILD_DIR)/$(AIRCRAFT_DYNAMICS_CXX).o \
-	$(BUILD_DIR)/$(FDM_SOLVER_CXX).o# Compile with debug symbols
+	$(BUILD_DIR)/$(FDM_SOLVER_CXX).o
+
+# Compile with debug symbols
 USERCPPFLAGS = -g -Wall -Wextra
 
 include ./Makefile.master

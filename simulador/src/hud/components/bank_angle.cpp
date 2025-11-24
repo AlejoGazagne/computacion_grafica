@@ -1,5 +1,5 @@
 #include "bank_angle.h"
-#include "text_renderer.h"
+#include "../text_renderer.h"
 #include <iostream>
 #include <cmath>
 #include <string>
