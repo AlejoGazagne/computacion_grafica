@@ -45,6 +45,7 @@
 // UI System
 #include "ui/bank_angle.h"
 #include "ui/pitch_ladder.h"
+#include "hud/huddef.h"
 
 // Physics System
 #include "physics/flight_dynamics.h"
@@ -152,15 +153,7 @@ public:
             }
         }
 
-        // Actualizar HUD
-        if (bank_angle_indicator_)
-        {
-            bank_angle_indicator_->updateScreenSize(width, height);
-        }
-        if (pitch_ladder_)
-        {
-            pitch_ladder_->updateScreenSize(width, height);
-        }
+        // HUD actual no requiere actualización explícita de tamaño (usa NDC)
     }
 
     /**
@@ -216,7 +209,7 @@ public:
     void run()
     {
         std::cout << "\n=== Starting main loop ===" << std::endl;
-        printControls();
+        // printControls();
 
         while (!context_->shouldClose() && app_state_.running)
         {
@@ -239,10 +232,10 @@ private:
     bool initializeOpenGL()
     {
         WindowConfig config;
-        config.width = 1920;  // Resolución común de pantalla completa
+        config.width = 1920; // Resolución común de pantalla completa
         config.height = 1080;
         config.title = "Flight Simulator - Physics-based Flight Dynamics";
-        config.fullscreen = true;  // Activar pantalla completa
+        config.fullscreen = true; // Activar pantalla completa
         config.vsync = true;
 
         context_ = std::make_unique<OpenGLContext>();
@@ -385,9 +378,9 @@ private:
             ctc.texture_repeat = base_cfg.texture_repeat;
             ctc.use_perlin_noise = base_cfg.use_perlin_noise;
             // Ajustes para más montañas y más grandes (en escala de mundo masivo)
-            ctc.noise_scale = 0.0015f;           // más frecuencia (menos liso)
-            ctc.height_multiplier = 1000.0f;     // picos más altos
-            ctc.noise_octaves = 9;               // más detalle fino
+            ctc.noise_scale = 0.0015f;       // más frecuencia (menos liso)
+            ctc.height_multiplier = 1000.0f; // picos más altos
+            ctc.noise_octaves = 9;           // más detalle fino
             ctc.noise_seed = base_cfg.noise_seed;
             ctc.view_radius_chunks = 1; // 3x3 chunks alrededor de la cámara
 
@@ -414,7 +407,7 @@ private:
         float camera_height_offset = 15.0f; // Altura extra sobre el terreno
         float camera_x = 0.0f;
         float camera_z = 100.0f; // Un poco atrás del origen
-    float camera_terrain_height = chunked_terrain_->getHeightAt(camera_x, camera_z);
+        float camera_terrain_height = chunked_terrain_->getHeightAt(camera_x, camera_z);
 
         camera_config.position = glm::vec3(camera_x, camera_terrain_height + camera_height_offset, camera_z);
         camera_config.target = glm::vec3(0.0f, terrain_height_at_origin + 5.0f, 0.0f); // Mirar al cubo
@@ -480,25 +473,30 @@ private:
         int width, height;
         glfwGetWindowSize(context_->getWindow(), &width, &height);
 
-        // Crear indicador de bank angle
-        bank_angle_indicator_ = std::make_unique<BankAngleIndicator>(width, height);
-
-        if (!bank_angle_indicator_->isInitialized())
+        // Cargar shaders de HUD
+        auto &shader_manager = ShaderManager::getInstance();
+        if (!shader_manager.loadShader("bank_angle_shader", "shaders/vertex_bank_angle.glsl", "shaders/fragment_bank_angle.glsl"))
         {
-            std::cerr << "Failed to initialize Bank Angle HUD" << std::endl;
+            std::cerr << "Failed to load bank angle shader" << std::endl;
+            return false;
+        }
+        if (!shader_manager.loadShader("pitch_ladder_shader", "shaders/vertex_hud.glsl", "shaders/fragment_hud.glsl"))
+        {
+            std::cerr << "Failed to load pitch ladder shader" << std::endl;
             return false;
         }
 
-        // Crear pitch ladder
-        pitch_ladder_ = std::make_unique<PitchLadder>(width, height);
+        // Crear instrumentos con la interfaz estándar
+        Shader *bank_shader = shader_manager.getShader("bank_angle_shader");
+        Shader *ladder_shader = shader_manager.getShader("pitch_ladder_shader");
 
-        if (!pitch_ladder_->isInitialized())
-        {
-            std::cerr << "Failed to initialize Pitch Ladder HUD" << std::endl;
-            return false;
-        }
+        bank_angle_indicator_ = std::make_unique<BankAngleIndicator>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), bank_shader);
+        pitch_ladder_ = std::make_unique<PitchLadder>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), ladder_shader);
 
-        std::cout << "Bank Angle HUD and Pitch Ladder initialized successfully" << std::endl;
+        bank_angle_indicator_->initialize();
+        pitch_ladder_->initialize();
+
+        std::cout << "HUD instruments initialized successfully" << std::endl;
         return true;
     }
 
@@ -522,8 +520,7 @@ private:
             if (third_person_mode_) {
                 third_person_distance_ -= static_cast<float>(yoffset) * 5.0f; // acercar/alejar
                 third_person_distance_ = glm::clamp(third_person_distance_, 10.0f, 500.0f);
-            }
-        });
+            } });
     }
 
     /**
@@ -570,13 +567,13 @@ private:
             return;
 
         auto &input_manager = InputManager::getInstance();
-        
+
         // Sensibilidades de control (ajustables)
-        const float throttle_rate = 0.3f * app_state_.delta_time;  // 30% por segundo
-        const float elevator_rate = glm::radians(30.0f) * app_state_.delta_time;  // 30 grados/seg
-        const float aileron_rate = glm::radians(45.0f) * app_state_.delta_time;   // 45 grados/seg
-        const float rudder_rate = glm::radians(30.0f) * app_state_.delta_time;    // 30 grados/seg
-        
+        const float throttle_rate = 0.3f * app_state_.delta_time;                // 30% por segundo
+        const float elevator_rate = glm::radians(30.0f) * app_state_.delta_time; // 30 grados/seg
+        const float aileron_rate = glm::radians(45.0f) * app_state_.delta_time;  // 45 grados/seg
+        const float rudder_rate = glm::radians(30.0f) * app_state_.delta_time;   // 30 grados/seg
+
         // THROTTLE (Potencia del motor)
         // W - Aumentar potencia
         if (input_manager.isKeyPressed(InputManager::KEY_W))
@@ -588,71 +585,74 @@ private:
         {
             flight_dynamics_->adjustThrottle(-throttle_rate);
         }
-        
+
         // ELEVATOR (Control de Pitch - arriba/abajo)
         // Flecha Arriba - Levantar morro (pitch up)
         if (input_manager.isKeyPressed(InputManager::KEY_UP))
         {
-            flight_dynamics_->adjustElevator(-elevator_rate);  // Negativo para pitch up
+            flight_dynamics_->adjustElevator(-elevator_rate); // Negativo para pitch up
         }
         // Flecha Abajo - Bajar morro (pitch down)
         if (input_manager.isKeyPressed(InputManager::KEY_DOWN))
         {
-            flight_dynamics_->adjustElevator(elevator_rate);   // Positivo para pitch down
+            flight_dynamics_->adjustElevator(elevator_rate); // Positivo para pitch down
         }
-        
+
         // AILERON (Control de Roll - inclinación lateral)
         // Flecha Izquierda - Inclinar a la izquierda
         if (input_manager.isKeyPressed(InputManager::KEY_LEFT))
         {
-            flight_dynamics_->adjustAileron(-aileron_rate);  // Negativo para roll left
+            flight_dynamics_->adjustAileron(-aileron_rate); // Negativo para roll left
         }
         // Flecha Derecha - Inclinar a la derecha
         if (input_manager.isKeyPressed(InputManager::KEY_RIGHT))
         {
-            flight_dynamics_->adjustAileron(aileron_rate);   // Positivo para roll right
+            flight_dynamics_->adjustAileron(aileron_rate); // Positivo para roll right
         }
-        
+
         // RUDDER (Control de Yaw - dirección izquierda/derecha)
         // A - Girar a la izquierda
         if (input_manager.isKeyPressed(InputManager::KEY_A))
         {
-            flight_dynamics_->adjustRudder(-rudder_rate);  // Negativo para yaw left
+            flight_dynamics_->adjustRudder(-rudder_rate); // Negativo para yaw left
         }
         // D - Girar a la derecha
         if (input_manager.isKeyPressed(InputManager::KEY_D))
         {
-            flight_dynamics_->adjustRudder(rudder_rate);   // Positivo para yaw right
+            flight_dynamics_->adjustRudder(rudder_rate); // Positivo para yaw right
         }
 
         // Retorno al centro (amortiguación) cuando no se presionan teclas
-        const float damping = 0.95f;  // Factor de amortiguación
-        
+        const float damping = 0.95f; // Factor de amortiguación
+
         // Retornar elevator al centro gradualmente
-        if (!input_manager.isKeyPressed(InputManager::KEY_UP) && 
+        if (!input_manager.isKeyPressed(InputManager::KEY_UP) &&
             !input_manager.isKeyPressed(InputManager::KEY_DOWN))
         {
-            auto& controls = flight_dynamics_->getControls();
+            auto &controls = flight_dynamics_->getControls();
             controls.elevator *= damping;
-            if (std::abs(controls.elevator) < 0.001f) controls.elevator = 0.0f;
+            if (std::abs(controls.elevator) < 0.001f)
+                controls.elevator = 0.0f;
         }
-        
+
         // Retornar aileron al centro gradualmente
-        if (!input_manager.isKeyPressed(InputManager::KEY_LEFT) && 
+        if (!input_manager.isKeyPressed(InputManager::KEY_LEFT) &&
             !input_manager.isKeyPressed(InputManager::KEY_RIGHT))
         {
-            auto& controls = flight_dynamics_->getControls();
+            auto &controls = flight_dynamics_->getControls();
             controls.aileron *= damping;
-            if (std::abs(controls.aileron) < 0.001f) controls.aileron = 0.0f;
+            if (std::abs(controls.aileron) < 0.001f)
+                controls.aileron = 0.0f;
         }
-        
+
         // Retornar rudder al centro gradualmente
-        if (!input_manager.isKeyPressed(InputManager::KEY_A) && 
+        if (!input_manager.isKeyPressed(InputManager::KEY_A) &&
             !input_manager.isKeyPressed(InputManager::KEY_D))
         {
-            auto& controls = flight_dynamics_->getControls();
+            auto &controls = flight_dynamics_->getControls();
             controls.rudder *= damping;
-            if (std::abs(controls.rudder) < 0.001f) controls.rudder = 0.0f;
+            if (std::abs(controls.rudder) < 0.001f)
+                controls.rudder = 0.0f;
         }
     }
 
@@ -801,7 +801,7 @@ private:
             if (!input_state_.c_pressed)
             {
                 third_person_mode_ = !third_person_mode_;
-                
+
                 if (third_person_mode_)
                 {
                     std::cout << "Third-person camera: ON" << std::endl;
@@ -810,7 +810,7 @@ private:
                 {
                     std::cout << "First-person camera: ON" << std::endl;
                 }
-                
+
                 input_state_.c_pressed = true;
             }
         }
@@ -828,7 +828,8 @@ private:
         if (flight_dynamics_)
         {
             flight_dynamics_->update(app_state_.delta_time);
-            
+            Physics::FlightData phys_fd = flight_dynamics_->getFlightData();
+
             // Obtener datos de vuelo del modelo físico
             glm::vec3 aircraft_position = flight_dynamics_->getPosition();
             glm::vec3 euler_angles = flight_dynamics_->getEulerAngles();
@@ -893,6 +894,24 @@ private:
                     camera->setRotation(euler_angles.y, euler_angles.x, euler_angles.z);
                 }
             }
+
+            // Actualizar instrumentos HUD con datos de vuelo (interfaz estándar)
+            hud::FlightData hud_fd{};
+            hud_fd.pitch = phys_fd.pitch;
+            hud_fd.roll = phys_fd.roll;
+            hud_fd.heading = phys_fd.heading;
+            hud_fd.altitude = phys_fd.altitude;
+            hud_fd.speed = phys_fd.speed;
+            hud_fd.vertical_speed = phys_fd.vertical_speed;
+            hud_fd.waypoint.latitude = phys_fd.waypoint.latitude;
+            // Mapear longitude -> longitud (nombre distinto en huddef)
+            hud_fd.waypoint.longitud = phys_fd.waypoint.longitude;
+            hud_fd.waypoint.altitude = phys_fd.waypoint.altitude;
+
+            if (bank_angle_indicator_)
+                bank_angle_indicator_->update(hud_fd);
+            if (pitch_ladder_)
+                pitch_ladder_->update(hud_fd);
         }
     }
 
@@ -1026,7 +1045,7 @@ private:
         if (cube_mesh_ && chunked_terrain_)
         {
             shader->use();
-            
+
             // Desactivar color uniforme para el cubo
             shader->setBool("useUniformColor", false);
 
@@ -1074,16 +1093,30 @@ private:
         // Renderizar HUD (solo en primera persona)
         if (!third_person_mode_)
         {
-            if (bank_angle_indicator_ && bank_angle_indicator_->isInitialized())
-            {
-                float roll_angle = camera->getRoll();
-                bank_angle_indicator_->render(roll_angle);
+            // Preparar datos de vuelo para el HUD
+            hud::FlightData flight_data;
+            flight_data.roll = camera->getRoll();
+            flight_data.pitch = camera->getPitch();
+            flight_data.heading = camera->getYaw();
+            
+            if (flight_dynamics_) {
+                flight_data.altitude = flight_dynamics_->getAltitude();
+                flight_data.speed = flight_dynamics_->getSpeed();
+            } else {
+                flight_data.altitude = 0.0f;
+                flight_data.speed = 0.0f;
             }
 
-            if (pitch_ladder_ && pitch_ladder_->isInitialized())
+            if (bank_angle_indicator_)
             {
-                float pitch_angle = camera->getPitch();
-                pitch_ladder_->render(pitch_angle);
+                bank_angle_indicator_->update(flight_data);
+                bank_angle_indicator_->render();
+            }
+
+            if (pitch_ladder_)
+            {
+                pitch_ladder_->update(flight_data);
+                pitch_ladder_->render();
             }
         }
     }
@@ -1109,7 +1142,7 @@ private:
         cube_mesh_.reset();
         camera_controller_.reset();
         skybox_.reset();
-    chunked_terrain_.reset();
+        chunked_terrain_.reset();
 
         // Limpiar contexto
         context_.reset();
