@@ -67,7 +67,6 @@ namespace UI
         if (!shader || !shader->isCompiled())
             return;
 
-        // Normalizar el ángulo de roll para aviación: 0° a 180° y luego cuenta regresiva
         float normalized_angle = bank_angle_deg_;
 
         // Normalizar a rango -180° a 180°
@@ -122,10 +121,8 @@ namespace UI
             // Calcular el ángulo que representa esta línea
             float line_angle = i * degrees_per_line;
 
-            // Posición a lo largo de la línea inclinada basada en la diferencia de ángulos
             float angle_diff = line_angle - display_angle;
-            // Cambiar de resta a suma para que el movimiento sea en la misma dirección
-            float t = 0.5f + (angle_diff / degrees_per_line) * (line_spacing / 0.4f); // Normalizar al ancho total
+            float t = 0.5f + (angle_diff / degrees_per_line) * (line_spacing / 0.4f);
 
             // Solo dibujar líneas que estén dentro del rango visible de la línea base
             if (t >= 0.0f && t <= 1.0f)

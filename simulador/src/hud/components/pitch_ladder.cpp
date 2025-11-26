@@ -174,12 +174,9 @@ namespace UI
         // 1. Generar la mira central (cruz) - FIJA en el centro de la pantalla
         generateCrosshairVertices(vertices, 0.0f, 0.0f);
 
-        // 2. Generar líneas dinámicamente según el pitch actual (similar a bank_angle)
-        // Calcular qué línea está más cerca del pitch actual
+        // 2. Generar líneas dinámicamente según el pitch actual
         int center_line_index = (int)round(pitch_angle_deg_ / PITCH_STEP);
 
-        // Solo mostrar 5 líneas: 2 arriba, 1 central, 2 abajo del pitch actual
-        // Esto hace que aparezcan/desaparezcan dinámicamente
         for (int i = center_line_index - 2; i <= center_line_index + 2; i++)
         {
             float pitch_line_angle = i * PITCH_STEP; // Múltiplos de 10°
