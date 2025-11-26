@@ -199,7 +199,7 @@ namespace Scene
                                     const glm::vec3 &target_forward,
                                     const glm::vec3 &target_right,
                                     const glm::vec3 &target_up,
-                                    float delta_time)
+                                    float /*delta_time*/)
     {
         cinematic_target_position_ = target_position;
 
@@ -315,7 +315,7 @@ namespace Scene
         return glm::mat4(glm::mat3(view_matrix_));
     }
 
-    void Camera::processKeyboardInput(GLFWwindow *window, float delta_time)
+    void Camera::processKeyboardInput(GLFWwindow * /*window*/, float /*delta_time*/)
     {
         // TODOS LOS CONTROLES DESHABILITADOS
         // No hay entrada de teclado para movimiento de cámara
@@ -630,7 +630,7 @@ namespace Scene
         }
     }
 
-    void CameraController::mouseCallback(GLFWwindow *window, double xpos, double ypos)
+    void CameraController::mouseCallback(GLFWwindow * /*window*/, double xpos, double ypos)
     {
         Camera *active_camera = getActiveCamera();
         if (active_camera && mouse_captured_)
@@ -639,7 +639,7 @@ namespace Scene
         }
     }
 
-    void CameraController::scrollCallback(GLFWwindow *window, double xoffset, double yoffset)
+    void CameraController::scrollCallback(GLFWwindow * /*window*/, double /*xoffset*/, double yoffset)
     {
         Camera *active_camera = getActiveCamera();
         if (active_camera)

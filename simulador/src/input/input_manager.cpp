@@ -383,7 +383,7 @@ namespace Input
     }
 
     // Callbacks estáticos para GLFW
-    void InputManager::keyCallbackStatic(GLFWwindow *window, int key, int scancode, int action, int mods)
+    void InputManager::keyCallbackStatic(GLFWwindow * /*window*/, int key, int /*scancode*/, int action, int /*mods*/)
     {
         InputManager &input = getInstance();
 
@@ -416,7 +416,7 @@ namespace Input
         return use_joystick_;
     }
 
-    void InputManager::mouseCallbackStatic(GLFWwindow *window, double xpos, double ypos)
+    void InputManager::mouseCallbackStatic(GLFWwindow * /*window*/, double xpos, double ypos)
     {
         InputManager &input = getInstance();
 
@@ -436,7 +436,7 @@ namespace Input
         input.mouse_state_.y = ypos;
     }
 
-    void InputManager::scrollCallbackStatic(GLFWwindow *window, double xoffset, double yoffset)
+    void InputManager::scrollCallbackStatic(GLFWwindow * /*window*/, double xoffset, double yoffset)
     {
         InputManager &input = getInstance();
 
@@ -453,7 +453,7 @@ namespace Input
         }
     }
 
-    void InputManager::mouseButtonCallbackStatic(GLFWwindow *window, int button, int action, int mods)
+    void InputManager::mouseButtonCallbackStatic(GLFWwindow * /*window*/, int button, int action, int /*mods*/)
     {
         InputManager &input = getInstance();
 

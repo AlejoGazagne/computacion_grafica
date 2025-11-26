@@ -77,8 +77,8 @@ namespace Utils
   }
 
   std::unique_ptr<Graphics::Rendering::Mesh> ModelLoader::processMesh(::aiMesh *mesh,
-                                                                      const ::aiScene *scene,
-                                                                      const std::string &directory,
+                                                                      const ::aiScene * /*scene*/,
+                                                                      const std::string & /*directory*/,
                                                                       const glm::vec3 &center_offset)
   {
     std::vector<Graphics::Rendering::Vertex> vertices;

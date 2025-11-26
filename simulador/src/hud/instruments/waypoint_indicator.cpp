@@ -99,7 +99,7 @@ namespace hud
       float angleRad = glm::radians(angleDeg - 90.0f); // Start from top (N)
 
       bool isMajor = (i % 2 == 0);
-      bool isNumeric = (i % 6 == 0);
+      // bool isNumeric = (i % 6 == 0);
 
       float tickLength = isMajor ? MAJOR_TICK : MINOR_TICK;
       float innerRadius = ROSE_RADIUS - tickLength;

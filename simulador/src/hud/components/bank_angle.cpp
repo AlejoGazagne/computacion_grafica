@@ -106,9 +106,9 @@ namespace UI
         float right_y = center_y + line_slope * line_width / 2; // Más arriba a la derecha
 
         // Líneas de graduación móviles - Cada línea representa 10° de inclinación
-        float line_spacing = 0.045f;                                           // Espaciado aumentado para dar espacio a los números
-        float degrees_per_line = 10.0f;                                        // Cada línea representa 10 grados
-        float line_offset = (display_angle / degrees_per_line) * line_spacing; // Desplazamiento basado en grados
+        float line_spacing = 0.045f;    // Espaciado aumentado para dar espacio a los números
+        float degrees_per_line = 10.0f; // Cada línea representa 10 grados
+        // float line_offset = (display_angle / degrees_per_line) * line_spacing; // Desplazamiento basado en grados
 
         // Calcular qué línea está en el centro basado en el ángulo actual
         int center_line_index = (int)round(display_angle / degrees_per_line);

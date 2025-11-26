@@ -11,16 +11,16 @@ namespace Graphics
 
         // === Implementación de Mesh ===
 
-        Mesh::Mesh() : name_("unnamed_mesh"), initialized_(false), instance_count_(0), texture_id_(0), has_texture_(false)
+        Mesh::Mesh() : instance_count_(0), texture_id_(0), has_texture_(false), name_("unnamed_mesh"), initialized_(false)
         {
         }
 
-        Mesh::Mesh(const std::string &name) : name_(name), initialized_(false), instance_count_(0), texture_id_(0), has_texture_(false)
+        Mesh::Mesh(const std::string &name) : instance_count_(0), texture_id_(0), has_texture_(false), name_(name), initialized_(false)
         {
         }
 
         Mesh::Mesh(const std::vector<Vertex> &vertices, const std::vector<unsigned int> &indices, const std::string &name)
-            : vertices_(vertices), indices_(indices), name_(name.empty() ? "unnamed_mesh" : name), initialized_(false), instance_count_(0), texture_id_(0), has_texture_(false)
+            : vertices_(vertices), indices_(indices), instance_count_(0), texture_id_(0), has_texture_(false), name_(name.empty() ? "unnamed_mesh" : name), initialized_(false)
         {
             setupMesh();
         }
@@ -29,8 +29,8 @@ namespace Graphics
             : vertices_(std::move(other.vertices_)), indices_(std::move(other.indices_)),
               vao_(std::move(other.vao_)), vbo_(std::move(other.vbo_)), ebo_(std::move(other.ebo_)),
               instance_vbo_(std::move(other.instance_vbo_)), instance_count_(other.instance_count_),
-              name_(std::move(other.name_)), initialized_(other.initialized_),
-              texture_id_(other.texture_id_), has_texture_(other.has_texture_)
+              texture_id_(other.texture_id_), has_texture_(other.has_texture_),
+              name_(std::move(other.name_)), initialized_(other.initialized_)
         {
             other.initialized_ = false;
             other.instance_count_ = 0;
@@ -249,7 +249,7 @@ namespace Graphics
             }
 
             vao_->unbind();
-            
+
             // Desactivar textura
             if (has_texture_)
             {

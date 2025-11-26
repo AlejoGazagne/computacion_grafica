@@ -558,50 +558,50 @@ private:
 
         Mission::MissionDefinition test_mission;
         test_mission.id = "nav_01";
-        test_mission.name = "Ruta de Navegación Extendida";
-        test_mission.description = "Completa un circuito de navegación de 10 waypoints dispersos por el mapa";
+        test_mission.name = "Circuito de Navegación Extremo";
+        test_mission.description = "Misión de larga distancia: 10 waypoints dispersos en un área de 8000+ metros";
         test_mission.category = "navigation";
-        test_mission.difficulty = 2;
+        test_mission.difficulty = 4;
 
         // Waypoint 1: Punto de partida (cerca del origen)
         test_mission.waypoints.push_back(Mission::WaypointDef(
-            glm::vec3(150.0f, 550.0f, -150.0f), "Alpha"));
+            glm::vec3(200.0f, 550.0f, -200.0f), "Alpha"));
 
-        // Waypoint 2: Norte lejano
+        // Waypoint 2: Norte muy lejano (2.5km)
         test_mission.waypoints.push_back(Mission::WaypointDef(
-            glm::vec3(800.0f, 600.0f, -200.0f), "Bravo"));
+            glm::vec3(2500.0f, 700.0f, -400.0f), "Bravo"));
 
-        // Waypoint 3: Noreste
+        // Waypoint 3: Noreste extremo (3.5km, alta altitud)
         test_mission.waypoints.push_back(Mission::WaypointDef(
-            glm::vec3(1000.0f, 650.0f, -800.0f), "Charlie"));
+            glm::vec3(3200.0f, 850.0f, -2800.0f), "Charlie"));
 
-        // Waypoint 4: Este extremo
+        // Waypoint 4: Este muy lejano (4km)
         test_mission.waypoints.push_back(Mission::WaypointDef(
-            glm::vec3(600.0f, 700.0f, -1200.0f), "Delta"));
+            glm::vec3(1800.0f, 750.0f, -4000.0f), "Delta"));
 
-        // Waypoint 5: Sureste
+        // Waypoint 5: Sureste extremo (3.8km, descenso)
         test_mission.waypoints.push_back(Mission::WaypointDef(
-            glm::vec3(-200.0f, 650.0f, -1400.0f), "Echo"));
+            glm::vec3(-800.0f, 600.0f, -3800.0f), "Echo"));
 
-        // Waypoint 6: Sur lejano
+        // Waypoint 6: Sur muy lejano (3.5km, baja altitud)
         test_mission.waypoints.push_back(Mission::WaypointDef(
-            glm::vec3(-800.0f, 600.0f, -1100.0f), "Foxtrot"));
+            glm::vec3(-2800.0f, 550.0f, -2500.0f), "Foxtrot"));
 
-        // Waypoint 7: Suroeste
+        // Waypoint 7: Suroeste extremo (4km)
         test_mission.waypoints.push_back(Mission::WaypointDef(
-            glm::vec3(-1200.0f, 550.0f, -600.0f), "Golf"));
+            glm::vec3(-3500.0f, 650.0f, -800.0f), "Golf"));
 
-        // Waypoint 8: Oeste extremo
+        // Waypoint 8: Oeste muy lejano (3.8km, alta altitud)
         test_mission.waypoints.push_back(Mission::WaypointDef(
-            glm::vec3(-1000.0f, 600.0f, 100.0f), "Hotel"));
+            glm::vec3(-3200.0f, 800.0f, 1500.0f), "Hotel"));
 
-        // Waypoint 9: Noroeste (alta altitud)
+        // Waypoint 9: Noroeste lejano (2.5km, máxima altitud)
         test_mission.waypoints.push_back(Mission::WaypointDef(
-            glm::vec3(-400.0f, 750.0f, 600.0f), "India"));
+            glm::vec3(-1200.0f, 900.0f, 2800.0f), "India"));
 
-        // Waypoint 10: Retorno cerca del inicio
+        // Waypoint 10: Retorno al inicio (vuelo de aproximación)
         test_mission.waypoints.push_back(Mission::WaypointDef(
-            glm::vec3(50.0f, 550.0f, 200.0f), "Juliet"));
+            glm::vec3(100.0f, 600.0f, 300.0f), "Juliet"));
 
         mission_runtime_->startMission(test_mission);
         waypoint_system_->loadFromMission(test_mission);
@@ -618,13 +618,13 @@ private:
     {
         auto &input_manager = InputManager::getInstance();
 
-        input_manager.addMouseCallback([this](double xpos, double ypos, double delta_x, double delta_y)
+        input_manager.addMouseCallback([this](double xpos, double ypos, double /*delta_x*/, double /*delta_y*/)
                                        {
             if (camera_controller_->isMouseCaptured()) {
                 camera_controller_->mouseCallback(context_->getWindow(), xpos, ypos);
             } });
 
-        input_manager.addScrollCallback([this](double xoffset, double yoffset)
+        input_manager.addScrollCallback([this](double /*xoffset*/, double yoffset)
                                         {
             if (third_person_mode_) {
                 third_person_distance_ -= static_cast<float>(yoffset) * 5.0f;
