@@ -1,11 +1,11 @@
-#ifndef UI_VERTICAL_SPEED_INDICATOR_H
-#define UI_VERTICAL_SPEED_INDICATOR_H
+#ifndef HUD_VERTICAL_SPEED_INDICATOR_H
+#define HUD_VERTICAL_SPEED_INDICATOR_H
 
 #include <glm/glm.hpp>
 #include "../../include/hud/instrumentbase.h"
 #include <vector>
 
-namespace UI
+namespace hud
 {
 
   class VerticalSpeedIndicator : public hud::InstrumentBase
@@ -66,6 +66,6 @@ namespace UI
     }
   };
 
-} // namespace UI
+} // namespace hud
 
-#endif // UI_VERTICAL_SPEED_INDICATOR_H
+#endif // HUD_VERTICAL_SPEED_INDICATOR_H

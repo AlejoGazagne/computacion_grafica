@@ -7,7 +7,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace UI
+namespace hud
 {
 
     PitchLadder::PitchLadder(const glm::vec2 &pos,
@@ -211,4 +211,4 @@ namespace UI
         model_matrix_ = glm::mat4(1.0f);
     }
 
-} // namespace UI
+} // namespace hud

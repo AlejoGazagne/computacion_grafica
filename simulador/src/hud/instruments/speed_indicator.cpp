@@ -11,7 +11,7 @@ extern "C"
 #include <vector>
 #include <glm/gtc/matrix_transform.hpp>
 
-namespace UI
+namespace hud
 {
 
   SpeedIndicator::SpeedIndicator(const glm::vec2 &pos, const glm::vec2 &size, Graphics::Shaders::Shader *shader)
@@ -164,4 +164,4 @@ namespace UI
 
   void SpeedIndicator::updateModelMatrix() { model_matrix_ = glm::mat4(1.0f); }
 
-} // namespace UI
+} // namespace hud

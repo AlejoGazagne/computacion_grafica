@@ -137,7 +137,7 @@ namespace hud
       glm::vec2 textPos = center + glm::vec2(std::cos(angleRad), std::sin(angleRad)) * textRadius;
 
       // Draw number using TextRenderer (smaller)
-      std::vector<float> numberVerts = UI::TextRenderer::generateNumberVertices(
+      std::vector<float> numberVerts = hud::TextRenderer::generateNumberVertices(
           heading, textPos.x - 0.015f, textPos.y - 0.010f, 0.004f, 0.008f);
 
       if (!numberVerts.empty())

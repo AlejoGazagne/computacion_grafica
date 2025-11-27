@@ -8,7 +8,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace UI
+namespace hud
 {
 
     BankAngleIndicator::BankAngleIndicator(const glm::vec2 &pos,
@@ -211,7 +211,7 @@ namespace UI
         model_matrix_ = glm::mat4(1.0f);
     }
 
-} // namespace UI
+} // namespace hud
 
 /*
 En realidad los parametros de vuelo, como el angulo de bank van a venir de otro lado no van a ser tomados de la cámara
