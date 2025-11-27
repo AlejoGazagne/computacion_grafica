@@ -22,6 +22,7 @@
 #include "graphics/shaders/shader_manager.h"
 #include "graphics/textures/texture_manager.h"
 #include "graphics/rendering/buffer_objects.h"
+#include "graphics/rendering/shadow_map.h"
 #include "graphics/skybox/skybox.h"
 #include "graphics/lighting/light_manager.h"
 
@@ -91,6 +92,9 @@ private:
   // Lighting System
   std::unique_ptr<LightManager> light_manager_;
 
+  // Shadow Mapping System
+  std::unique_ptr<Graphics::Rendering::ShadowMap> shadow_map_;
+
   // UI Systems
   std::unique_ptr<BankAngleIndicator> bank_angle_indicator_;
   std::unique_ptr<PitchLadder> pitch_ladder_;
@@ -122,6 +126,9 @@ private:
   bool third_person_mode_ = false;
   float third_person_distance_ = 80.0f;
   float third_person_height_ = 10.0f;
+
+  // Punteros a shaders (no owned)
+  Graphics::Shaders::Shader *depth_shader_ = nullptr;
 
   // Parámetros de cámara cinemática
   bool cinematic_mode_ = false;               // Usar cámara cinemática en lugar de tercera persona
@@ -303,6 +310,14 @@ private:
       return false;
     }
 
+    // Shader para shadow mapping (depth pass)
+    if (!shader_manager.loadShader("depth", "shaders/depth.vert", "shaders/depth.frag"))
+    {
+      std::cerr << "Failed to load depth shader for shadow mapping" << std::endl;
+      return false;
+    }
+    depth_shader_ = shader_manager.getShader("depth");
+
     if (!texture_manager.loadTexture2D("terrain", "textures/terrain/terrain.jpg", true))
     {
       std::cout << "Warning: Could not load terrain texture, using fallback" << std::endl;
@@ -320,6 +335,10 @@ private:
       std::cerr << "Failed to initialize lighting system" << std::endl;
       return false;
     }
+
+    // Inicializar shadow mapping
+    shadow_map_ = std::make_unique<Graphics::Rendering::ShadowMap>(4096, 4096);
+    std::cout << "Shadow Mapping system initialized" << std::endl;
 
     return true;
   }
@@ -1196,10 +1215,71 @@ private:
   }
 
   /**
+   * @brief Renderiza la escena desde la perspectiva de la luz (Shadow Pass)
+   *
+   * Primera pasada del shadow mapping:
+   * - Renderiza a un FBO con solo depth attachment
+   * - Usa shader simple que solo calcula profundidad
+   * - La geometría se transforma con lightSpaceMatrix
+   */
+  void renderShadowPass()
+  {
+    if (!shadow_map_ || !depth_shader_ || !light_manager_)
+      return;
+
+    auto sunlight = light_manager_->getSunlight();
+    if (!sunlight)
+      return;
+
+    // Calcular matriz de luz (seguir al avión para mejor cobertura)
+    glm::vec3 target_pos = camera_controller_ ? camera_controller_->getActiveCamera()->getPosition() : glm::vec3(0.0f);
+    glm::mat4 lightSpaceMatrix = sunlight->getLightSpaceMatrix(target_pos);
+
+    // 1. Activar FBO del shadow map
+    shadow_map_->bindForWriting();
+
+    // 2. Configurar shader de profundidad
+    depth_shader_->use();
+    depth_shader_->setMat4("lightSpaceMatrix", lightSpaceMatrix);
+
+    // 3. Renderizar geometría (terreno y avión)
+
+    // Terreno
+    if (chunked_terrain_)
+    {
+      glm::mat4 terrain_model = glm::mat4(1.0f);
+      depth_shader_->setMat4("model", terrain_model);
+      chunked_terrain_->draw();
+    }
+
+    // Avión (solo en tercera persona)
+    if (aircraft_model_ && third_person_mode_)
+    {
+      // El modelo ya aplica sus transformaciones internas
+      aircraft_model_->render(depth_shader_);
+    }
+
+    // 4. Desactivar FBO
+    shadow_map_->unbind();
+  }
+
+  /**
    * @brief Renderiza la escena
    */
   void render()
   {
+    // ========== SHADOW PASS ==========
+    // Primera pasada: renderizar depth map desde perspectiva de la luz
+    renderShadowPass();
+
+    // ========== RENDER PASS ==========
+    // Segunda pasada: renderizado normal con sombras
+
+    // Restaurar viewport al tamaño de la ventana
+    int width, height;
+    glfwGetFramebufferSize(context_->getWindow(), &width, &height);
+    glViewport(0, 0, width, height);
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     Camera *camera = camera_controller_->getActiveCamera();
@@ -1212,6 +1292,13 @@ private:
     glm::mat4 view_matrix = camera->getViewMatrix();
     glm::mat4 projection_matrix = camera->getProjectionMatrix();
     glm::vec3 camera_pos = camera->getPosition();
+
+    // Calcular lightSpaceMatrix para sombras
+    glm::mat4 lightSpaceMatrix = glm::mat4(1.0f);
+    if (light_manager_ && light_manager_->getSunlight())
+    {
+      lightSpaceMatrix = light_manager_->getSunlight()->getLightSpaceMatrix(camera_pos);
+    }
 
     if (skybox_)
     {
@@ -1240,9 +1327,18 @@ private:
     shader->setFloat("fogDensity", 0.0001f);
     shader->setVec3("fogColor", glm::vec3(0.85f, 0.90f, 0.95f));
 
+    // Aplicar lighting y shadow mapping
     if (light_manager_)
     {
       light_manager_->applyToShader(shader);
+    }
+
+    // Configurar shadow map
+    shader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
+    if (shadow_map_)
+    {
+      shadow_map_->bindForReading(GL_TEXTURE0 + 5); // Usar texture unit 5
+      shader->setInt("shadowMap", 5);
     }
 
     if (chunked_terrain_)
@@ -1256,6 +1352,14 @@ private:
       shader->setVec3("fogColor", glm::vec3(0.85f, 0.90f, 0.95f));
 
       light_manager_->applyToShader(shader);
+
+      // Shadow mapping para terreno
+      shader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
+      if (shadow_map_)
+      {
+        shadow_map_->bindForReading(GL_TEXTURE0 + 5);
+        shader->setInt("shadowMap", 5);
+      }
 
       if (app_state_.use_texture)
       {
