@@ -34,9 +34,9 @@ namespace Graphics
                   diffuse_(0.8f, 0.8f, 0.8f),
                   specular_(0.5f, 0.5f, 0.5f),
                   enabled_(true),
-                  shadow_frustum_size_(100.0f),
+                  shadow_frustum_size_(800.0f),
                   shadow_near_plane_(1.0f),
-                  shadow_far_plane_(300.0f) {}
+                  shadow_far_plane_(2000.0f) {}
 
             // Getters
             const glm::vec3 &getDirection() const { return direction_; }
@@ -109,9 +109,9 @@ namespace Graphics
             static DirectionalLight createSunlight()
             {
                 DirectionalLight sun;
-                sun.setDirection(glm::vec3(-0.3f, -1.0f, -0.2f)); // Sol desde arriba
-                sun.setAmbient(glm::vec3(0.5f, 0.5f, 0.5f));      // Luz ambiental uniforme
-                sun.setDiffuse(glm::vec3(0.5f, 0.5f, 0.5f));      // Luz difusa uniforme
+                sun.setDirection(glm::vec3(-0.2f, -1.0f, -0.3f)); // Sol desde arriba (mediodía)
+                sun.setAmbient(glm::vec3(0.3f, 0.3f, 0.3f));      // Luz ambiental normal
+                sun.setDiffuse(glm::vec3(0.8f, 0.8f, 0.8f));      // Luz difusa normal
                 sun.setSpecular(glm::vec3(0.0f, 0.0f, 0.0f));     // Sin especular
                 sun.setEnabled(true);
                 return sun;

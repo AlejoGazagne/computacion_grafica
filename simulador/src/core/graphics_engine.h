@@ -1252,8 +1252,8 @@ private:
       chunked_terrain_->draw();
     }
 
-    // Avión (solo en tercera persona)
-    if (aircraft_model_ && third_person_mode_)
+    // Avión (siempre renderizar en shadow pass para que proyecte sombra)
+    if (aircraft_model_)
     {
       // El modelo ya aplica sus transformaciones internas
       aircraft_model_->render(depth_shader_);
