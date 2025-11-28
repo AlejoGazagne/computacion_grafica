@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include <iostream>
 
 namespace Graphics
@@ -138,6 +139,17 @@ namespace Graphics
     private:
       void cleanup()
       {
+        // Verificar si el contexto OpenGL todavía es válido
+        // Si glfwGetCurrentContext devuelve NULL, no intentar liberar recursos GL
+        GLFWwindow *current_context = glfwGetCurrentContext();
+        if (current_context == nullptr)
+        {
+          // El contexto ya fue destruido, no podemos liberar recursos GL
+          depth_map_ = 0;
+          fbo_ = 0;
+          return;
+        }
+
         if (depth_map_ != 0)
         {
           glDeleteTextures(1, &depth_map_);

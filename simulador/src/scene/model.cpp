@@ -7,7 +7,7 @@ namespace Scene
 {
 
   Model::Model(const std::string &name)
-      : name_(name), visible_(true), use_uniform_color_(false), 
+      : name_(name), visible_(true), use_uniform_color_(false),
         uniform_color_(1.0f, 1.0f, 1.0f)
   {
   }
@@ -43,7 +43,7 @@ namespace Scene
     {
       // Configurar si usar textura o no basado en cada mesh
       shader->setBool("useTexture", mesh->hasTexture());
-      
+
       if (mesh->hasInstanceData())
       {
         mesh->drawInstanced(mesh->getInstanceCount());
@@ -55,6 +55,21 @@ namespace Scene
     }
 
     shader->unuse();
+  }
+
+  void Model::renderDepthOnly(Graphics::Shaders::Shader *shader) const
+  {
+    if (!visible_ || !shader)
+      return;
+
+    // Asumir que el shader ya está activo (se llamó use() externamente)
+    shader->setMat4("model", transform_.getMatrix());
+
+    // Solo renderizar la geometría, sin configurar uniforms de material
+    for (const auto &mesh : meshes_)
+    {
+      mesh->draw();
+    }
   }
 
 }

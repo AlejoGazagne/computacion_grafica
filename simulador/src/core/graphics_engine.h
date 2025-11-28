@@ -92,9 +92,6 @@ private:
   // Lighting System
   std::unique_ptr<LightManager> light_manager_;
 
-  // Shadow Mapping System
-  std::unique_ptr<Graphics::Rendering::ShadowMap> shadow_map_;
-
   // UI Systems
   std::unique_ptr<BankAngleIndicator> bank_angle_indicator_;
   std::unique_ptr<PitchLadder> pitch_ladder_;
@@ -129,6 +126,9 @@ private:
 
   // Punteros a shaders (no owned)
   Graphics::Shaders::Shader *depth_shader_ = nullptr;
+
+  // Shadow Mapping System
+  std::unique_ptr<Graphics::Rendering::ShadowMap> shadow_map_;
 
   // Parámetros de cámara cinemática
   bool cinematic_mode_ = false;               // Usar cámara cinemática en lugar de tercera persona
@@ -1253,10 +1253,10 @@ private:
     }
 
     // Avión (siempre renderizar en shadow pass para que proyecte sombra)
-    if (aircraft_model_)
+    if (aircraft_model_ && flight_dynamics_)
     {
-      // El modelo ya aplica sus transformaciones internas
-      aircraft_model_->render(depth_shader_);
+      // Usar renderDepthOnly para evitar configurar uniforms que no existen en depth shader
+      aircraft_model_->renderDepthOnly(depth_shader_);
     }
 
     // 4. Desactivar FBO
@@ -1493,9 +1493,6 @@ private:
     camera_controller_.reset();
     skybox_.reset();
     chunked_terrain_.reset();
-
-    // Limpiar contexto al final
-    context_.reset();
 
     std::cout << "Engine shutdown complete" << std::endl;
   }

@@ -55,6 +55,7 @@ namespace Scene
 
     void addMesh(std::unique_ptr<Graphics::Rendering::Mesh> mesh);
     void render(Graphics::Shaders::Shader *shader) const;
+    void renderDepthOnly(Graphics::Shaders::Shader *shader) const;
 
     // Getters
     const std::string &getName() const { return name_; }
