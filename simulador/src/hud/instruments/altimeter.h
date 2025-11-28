@@ -1,11 +1,11 @@
-#ifndef UI_ALTIMETER_H
-#define UI_ALTIMETER_H
+#ifndef HUD_ALTIMETER_H
+#define HUD_ALTIMETER_H
 
 #include <glm/glm.hpp>
 #include "../../include/hud/instrumentbase.h"
 #include <vector>
 
-namespace UI
+namespace hud
 {
 
   class Altimeter : public hud::InstrumentBase
@@ -61,6 +61,6 @@ namespace UI
     float chevron_width_ndc_ = 0.02f;
   };
 
-} // namespace UI
+} // namespace hud
 
-#endif // UI_ALTIMETER_H
+#endif // HUD_ALTIMETER_H

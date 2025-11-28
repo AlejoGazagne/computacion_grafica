@@ -1,16 +1,18 @@
-#ifndef TEXT_RENDERER_H
-#define TEXT_RENDERER_H
+#ifndef HUD_TEXT_RENDERER_H
+#define HUD_TEXT_RENDERER_H
 
 #include <vector>
 #include <string>
 
-namespace UI {
+namespace hud
+{
 
     /**
      * @brief Renderizador de texto simple usando líneas para HUDs de aviación
      * Genera vértices para números utilizando líneas OpenGL
      */
-    class TextRenderer {
+    class TextRenderer
+    {
     public:
         /**
          * @brief Genera vértices para renderizar un número usando líneas
@@ -22,12 +24,11 @@ namespace UI {
          * @return Vector de vértices para renderizar con GL_LINES
          */
         static std::vector<float> generateNumberVertices(
-            int number, 
-            float x, 
-            float y, 
-            float digit_width = 0.02f, 
-            float digit_height = 0.03f
-        );
+            int number,
+            float x,
+            float y,
+            float digit_width = 0.02f,
+            float digit_height = 0.03f);
 
     private:
         /**
@@ -40,14 +41,13 @@ namespace UI {
          * @return Vector de vértices para el dígito
          */
         static std::vector<float> generateDigitVertices(
-            int digit, 
-            float x, 
-            float y, 
-            float width, 
-            float height
-        );
+            int digit,
+            float x,
+            float y,
+            float width,
+            float height);
     };
 
-} // namespace UI
+} // namespace hud
 
-#endif // TEXT_RENDERER_H
+#endif // HUD_TEXT_RENDERER_H

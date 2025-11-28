@@ -1,11 +1,11 @@
-#ifndef UI_SPEED_INDICATOR_H
-#define UI_SPEED_INDICATOR_H
+#ifndef HUD_SPEED_INDICATOR_H
+#define HUD_SPEED_INDICATOR_H
 
 #include <glm/glm.hpp>
 #include "../../include/hud/instrumentbase.h"
 #include <vector>
 
-namespace UI
+namespace hud
 {
 
   class SpeedIndicator : public hud::InstrumentBase
@@ -57,6 +57,6 @@ namespace UI
     float box_h_ndc_ = 0.08f;
   };
 
-} // namespace UI
+} // namespace hud
 
-#endif // UI_SPEED_INDICATOR_H
+#endif // HUD_SPEED_INDICATOR_H

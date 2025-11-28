@@ -207,6 +207,7 @@ namespace Input
         static constexpr int KEY_Y = GLFW_KEY_Y;
         static constexpr int KEY_C = GLFW_KEY_C;
         static constexpr int KEY_X = GLFW_KEY_X;
+        static constexpr int KEY_V = GLFW_KEY_V;
         static constexpr int KEY_J = GLFW_KEY_J; // Toggle joystick controls
     };
 

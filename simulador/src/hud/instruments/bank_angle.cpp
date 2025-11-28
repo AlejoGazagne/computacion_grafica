@@ -8,7 +8,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace UI
+namespace hud
 {
 
     BankAngleIndicator::BankAngleIndicator(const glm::vec2 &pos,
@@ -67,7 +67,6 @@ namespace UI
         if (!shader || !shader->isCompiled())
             return;
 
-        // Normalizar el ángulo de roll para aviación: 0° a 180° y luego cuenta regresiva
         float normalized_angle = bank_angle_deg_;
 
         // Normalizar a rango -180° a 180°
@@ -107,9 +106,9 @@ namespace UI
         float right_y = center_y + line_slope * line_width / 2; // Más arriba a la derecha
 
         // Líneas de graduación móviles - Cada línea representa 10° de inclinación
-        float line_spacing = 0.045f;                                           // Espaciado aumentado para dar espacio a los números
-        float degrees_per_line = 10.0f;                                        // Cada línea representa 10 grados
-        float line_offset = (display_angle / degrees_per_line) * line_spacing; // Desplazamiento basado en grados
+        float line_spacing = 0.045f;    // Espaciado aumentado para dar espacio a los números
+        float degrees_per_line = 10.0f; // Cada línea representa 10 grados
+        // float line_offset = (display_angle / degrees_per_line) * line_spacing; // Desplazamiento basado en grados
 
         // Calcular qué línea está en el centro basado en el ángulo actual
         int center_line_index = (int)round(display_angle / degrees_per_line);
@@ -122,10 +121,8 @@ namespace UI
             // Calcular el ángulo que representa esta línea
             float line_angle = i * degrees_per_line;
 
-            // Posición a lo largo de la línea inclinada basada en la diferencia de ángulos
             float angle_diff = line_angle - display_angle;
-            // Cambiar de resta a suma para que el movimiento sea en la misma dirección
-            float t = 0.5f + (angle_diff / degrees_per_line) * (line_spacing / 0.4f); // Normalizar al ancho total
+            float t = 0.5f + (angle_diff / degrees_per_line) * (line_spacing / 0.4f);
 
             // Solo dibujar líneas que estén dentro del rango visible de la línea base
             if (t >= 0.0f && t <= 1.0f)
@@ -214,7 +211,7 @@ namespace UI
         model_matrix_ = glm::mat4(1.0f);
     }
 
-} // namespace UI
+} // namespace hud
 
 /*
 En realidad los parametros de vuelo, como el angulo de bank van a venir de otro lado no van a ser tomados de la cámara

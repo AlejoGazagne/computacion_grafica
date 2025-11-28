@@ -99,7 +99,7 @@ namespace hud
       float angleRad = glm::radians(angleDeg - 90.0f); // Start from top (N)
 
       bool isMajor = (i % 2 == 0);
-      bool isNumeric = (i % 6 == 0);
+      // bool isNumeric = (i % 6 == 0);
 
       float tickLength = isMajor ? MAJOR_TICK : MINOR_TICK;
       float innerRadius = ROSE_RADIUS - tickLength;
@@ -137,7 +137,7 @@ namespace hud
       glm::vec2 textPos = center + glm::vec2(std::cos(angleRad), std::sin(angleRad)) * textRadius;
 
       // Draw number using TextRenderer (smaller)
-      std::vector<float> numberVerts = UI::TextRenderer::generateNumberVertices(
+      std::vector<float> numberVerts = hud::TextRenderer::generateNumberVertices(
           heading, textPos.x - 0.015f, textPos.y - 0.010f, 0.004f, 0.008f);
 
       if (!numberVerts.empty())

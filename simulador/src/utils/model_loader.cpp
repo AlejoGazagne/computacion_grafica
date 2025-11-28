@@ -10,19 +10,19 @@
 namespace Utils
 {
 
-  std::unique_ptr<Scene::Model> ModelLoader::loadModel(const std::string &filepath, 
-                                                        const std::string &model_name)
+  std::unique_ptr<Scene::Model> ModelLoader::loadModel(const std::string &filepath,
+                                                       const std::string &model_name)
   {
     // Crear importador de Assimp
     Assimp::Importer importer;
 
     // Leer el archivo con opciones de post-procesado
     const aiScene *scene = importer.ReadFile(filepath,
-                                             aiProcess_Triangulate |           // Convertir a triángulos
-                                             aiProcess_FlipUVs |               // Voltear coordenadas UV
-                                             aiProcess_GenNormals |            // Generar normales si no existen
-                                             aiProcess_CalcTangentSpace |      // Calcular tangentes y bitangentes
-                                             aiProcess_JoinIdenticalVertices); // Optimizar vértices
+                                             aiProcess_Triangulate |               // Convertir a triángulos
+                                                 aiProcess_FlipUVs |               // Voltear coordenadas UV
+                                                 aiProcess_GenNormals |            // Generar normales si no existen
+                                                 aiProcess_CalcTangentSpace |      // Calcular tangentes y bitangentes
+                                                 aiProcess_JoinIdenticalVertices); // Optimizar vértices
 
     // Verificar errores
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
@@ -34,19 +34,11 @@ namespace Utils
     std::string directory = getDirectory(filepath);
     std::string name = model_name.empty() ? filepath : model_name;
 
-    // Crear el modelo
     auto model = std::make_unique<Scene::Model>(name);
-
-    // Vector para almacenar los meshes
     std::vector<std::unique_ptr<Graphics::Rendering::Mesh>> meshes;
-
-    // Calcular el centro del modelo primero
     glm::vec3 model_center = calculateModelCenter(scene);
-
-    // Procesar todos los nodos recursivamente
     processNode(scene->mRootNode, scene, meshes, directory, model_center);
 
-    // Agregar todos los meshes al modelo
     for (auto &mesh : meshes)
     {
       model->addMesh(std::move(mesh));
@@ -54,13 +46,13 @@ namespace Utils
 
     std::cout << "Modelo cargado exitosamente: " << filepath << std::endl;
     std::cout << "  Meshes: " << model->getMeshCount() << std::endl;
-    std::cout << "  Centro del modelo: (" << model_center.x << ", " 
+    std::cout << "  Centro del modelo: (" << model_center.x << ", "
               << model_center.y << ", " << model_center.z << ")" << std::endl;
 
     return model;
   }
 
-  void ModelLoader::processNode(::aiNode *node, 
+  void ModelLoader::processNode(::aiNode *node,
                                 const ::aiScene *scene,
                                 std::vector<std::unique_ptr<Graphics::Rendering::Mesh>> &meshes,
                                 const std::string &directory,
@@ -84,10 +76,10 @@ namespace Utils
     }
   }
 
-  std::unique_ptr<Graphics::Rendering::Mesh> ModelLoader::processMesh(::aiMesh *mesh, 
-                                                                       const ::aiScene *scene,
-                                                                       const std::string &directory,
-                                                                       const glm::vec3 &center_offset)
+  std::unique_ptr<Graphics::Rendering::Mesh> ModelLoader::processMesh(::aiMesh *mesh,
+                                                                      const ::aiScene * /*scene*/,
+                                                                      const std::string & /*directory*/,
+                                                                      const glm::vec3 &center_offset)
   {
     std::vector<Graphics::Rendering::Vertex> vertices;
     std::vector<unsigned int> indices;
@@ -171,10 +163,6 @@ namespace Utils
     }
 
     auto result_mesh = std::make_unique<Graphics::Rendering::Mesh>(vertices, indices, mesh_name);
-
-    // TODO: Cargar texturas si el material las tiene
-    // Por ahora, dejamos los meshes sin textura
-
     return result_mesh;
   }
 
@@ -193,20 +181,19 @@ namespace Utils
     glm::vec3 min_bounds(std::numeric_limits<float>::max());
     glm::vec3 max_bounds(std::numeric_limits<float>::lowest());
 
-    // Recorrer todos los meshes para encontrar los límites del modelo
     for (unsigned int m = 0; m < scene->mNumMeshes; m++)
     {
       ::aiMesh *mesh = scene->mMeshes[m];
-      
+
       for (unsigned int i = 0; i < mesh->mNumVertices; i++)
       {
         // Intercambiar X y Z al calcular el centro
         glm::vec3 pos(mesh->mVertices[i].z, mesh->mVertices[i].y, mesh->mVertices[i].x);
-        
+
         min_bounds.x = std::min(min_bounds.x, pos.x);
         min_bounds.y = std::min(min_bounds.y, pos.y);
         min_bounds.z = std::min(min_bounds.z, pos.z);
-        
+
         max_bounds.x = std::max(max_bounds.x, pos.x);
         max_bounds.y = std::max(max_bounds.y, pos.y);
         max_bounds.z = std::max(max_bounds.z, pos.z);

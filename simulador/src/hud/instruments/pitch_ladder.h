@@ -1,5 +1,5 @@
-#ifndef PITCH_LADDER_H
-#define PITCH_LADDER_H
+#ifndef HUD_PITCH_LADDER_H
+#define HUD_PITCH_LADDER_H
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -15,7 +15,7 @@ extern "C"
 #include "hud/instrumentbase.h"
 #include "hud/huddef.h"
 
-namespace UI
+namespace hud
 {
 
     /**
@@ -53,6 +53,6 @@ namespace UI
         void updateModelMatrix() override;
     };
 
-} // namespace UI
+} // namespace hud
 
-#endif // PITCH_LADDER_H
+#endif // HUD_PITCH_LADDER_H

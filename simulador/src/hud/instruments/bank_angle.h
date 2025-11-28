@@ -1,5 +1,5 @@
-#ifndef BANK_ANGLE_H
-#define BANK_ANGLE_H
+#ifndef HUD_BANK_ANGLE_H
+#define HUD_BANK_ANGLE_H
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -15,7 +15,7 @@ extern "C"
 #include "hud/instrumentbase.h"
 #include "hud/huddef.h"
 
-namespace UI
+namespace hud
 {
 
     /**
@@ -46,6 +46,6 @@ namespace UI
         void render() override;                            // dibuja el instrumento
     };
 
-} // namespace UI
+} // namespace hud
 
-#endif // BANK_ANGLE_H
+#endif // HUD_BANK_ANGLE_H

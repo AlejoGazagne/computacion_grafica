@@ -23,10 +23,9 @@ namespace Scene
     {
       glm::mat4 mat = glm::mat4(1.0f);
       mat = glm::translate(mat, position);
-      // Aplicar primero la rotación del movimiento
-      mat = glm::rotate(mat, rotation.y, glm::vec3(0, 1, 0)); // Yaw
-      mat = glm::rotate(mat, rotation.x, glm::vec3(1, 0, 0)); // Pitch
-      mat = glm::rotate(mat, rotation.z, glm::vec3(0, 0, 1)); // Roll
+      mat = glm::rotate(mat, rotation.y, glm::vec3(0, 1, 0));
+      mat = glm::rotate(mat, rotation.x, glm::vec3(1, 0, 0));
+      mat = glm::rotate(mat, rotation.z, glm::vec3(0, 0, 1));
       mat = glm::scale(mat, scale);
       return mat;
     }
@@ -68,9 +67,9 @@ namespace Scene
     // Setters
     Transform &getTransform() { return transform_; }
     void setVisible(bool visible) { visible_ = visible; }
-    void setUniformColor(const glm::vec3 &color) 
-    { 
-      uniform_color_ = color; 
+    void setUniformColor(const glm::vec3 &color)
+    {
+      uniform_color_ = color;
       use_uniform_color_ = true;
     }
     void disableUniformColor() { use_uniform_color_ = false; }
