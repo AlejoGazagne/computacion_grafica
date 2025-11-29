@@ -18,24 +18,10 @@ extern "C"
 namespace Scene
 {
 
-    enum class CameraMovement
-    {
-        FORWARD,
-        BACKWARD,
-        LEFT,
-        RIGHT,
-        UP,
-        DOWN,
-        ROLL_LEFT,
-        ROLL_RIGHT
-    };
-
     enum class CameraType
     {
-        PERSPECTIVE,
-        ORTHOGRAPHIC,
         FIRST_PERSON,
-        ORBITAL,
+        THIRD_PERSON,
         CINEMATIC
     };
 
@@ -87,17 +73,8 @@ namespace Scene
         mutable glm::mat4 view_matrix_;
         mutable glm::mat4 projection_matrix_;
 
-        // Control de mouse
-        bool first_mouse_;
-        float last_x_;
-        float last_y_;
-
         // Estado
         mutable bool matrices_dirty_;
-
-        // Orbital camera específico
-        float orbit_distance_;
-        glm::vec3 orbit_target_;
 
         // Cinematic camera específico
         float cinematic_forward_distance_;      // Distancia por delante del avión
@@ -168,7 +145,6 @@ namespace Scene
 
         // Proyección
         void setPerspective(float fov, float aspect_ratio, float near_plane, float far_plane);
-        void setOrthographic(float left, float right, float bottom, float top, float near_plane, float far_plane);
         void setAspectRatio(float aspect_ratio);
         void setFOV(float fov);
 
@@ -187,21 +163,11 @@ namespace Scene
 
         // Movimiento
         void processKeyboardInput(GLFWwindow *window, float delta_time);
-        void processMouseMovement(double xpos, double ypos);
         void processMouseScroll(float yoffset);
 
         // Movimiento manual
-        void move(CameraMovement direction, float delta_time);
         void rotate(float yaw_offset, float pitch_offset);
         void zoom(float offset);
-
-        // Orbital camera
-        void setOrbitTarget(const glm::vec3 &target);
-        void setOrbitDistance(float distance);
-        void orbitAroundTarget(float yaw_offset, float pitch_offset);
-
-        const glm::vec3 &getOrbitTarget() const { return orbit_target_; }
-        float getOrbitDistance() const { return orbit_distance_; }
 
         // Utilidades
         void lookAt(const glm::vec3 &target);
@@ -213,7 +179,6 @@ namespace Scene
 
         // Frustum (para culling)
         bool isPointInFrustum(const glm::vec3 &point) const;
-        bool isSphereInFrustum(const glm::vec3 &center, float radius) const;
 
         // Configuración de controles
         void setMovementSpeed(float speed) { config_.movement_speed = speed; }
@@ -263,8 +228,6 @@ namespace Scene
 
         // Configuraciones por defecto
         static CameraConfig getFirstPersonConfig();
-        static CameraConfig getOrbitalConfig();
-        static CameraConfig getOrthographicConfig();
     };
 
 } // namespace Scene

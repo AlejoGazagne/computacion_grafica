@@ -22,9 +22,7 @@ namespace Mission
    */
   enum class MissionPhase
   {
-    Briefing,   // Mostrando briefing inicial, físicas pausadas
     InProgress, // Misión en curso, físicas activas
-    Completed,  // Misión completada, esperando decisión del piloto
     FreeFlight  // Vuelo libre post-misión, sin waypoints
   };
 
@@ -33,8 +31,6 @@ namespace Mission
    */
   struct MissionStartContext
   {
-    int countdownSeconds = 3;
-    bool showBriefing = true;
     glm::vec3 startPosition;
     glm::quat startOrientation;
     float recommendedSpeed = 150.0f;     // kt
@@ -66,10 +62,6 @@ namespace Mission
     // CONTROL DE MISIÓN
     MissionStartContext startMission(const MissionDefinition &mission);
     void markWaypointCaptured(int waypointIndex);
-    void markCompletion();
-    void continueFreeFlight();
-    void requestMenuExit();
-    void reset();
 
     // ACTUALIZACIÓN DE PROGRESO
     void updateProgress(const hud::FlightData &flightData, float dt);
@@ -78,31 +70,20 @@ namespace Mission
     // CONSULTAS DE ESTADO
     MissionPhase phase() const { return phase_; }
     bool hasMission() const { return hasMission_; }
-    bool isCompleted() const { return phase_ == MissionPhase::Completed || phase_ == MissionPhase::FreeFlight; }
+    bool isCompleted() const { return phase_ == MissionPhase::FreeFlight; }
     bool areWaypointsEnabled() const
     {
-      return hasMission_ && (phase_ == MissionPhase::InProgress || phase_ == MissionPhase::Briefing);
+      return hasMission_ && phase_ == MissionPhase::InProgress;
     }
-    bool shouldRunPhysics() const
-    {
-      return phase_ == MissionPhase::InProgress || phase_ == MissionPhase::FreeFlight;
-    }
-    bool shouldShowOverlay() const
-    {
-      return phase_ == MissionPhase::Briefing || phase_ == MissionPhase::Completed;
-    }
-    bool menuExitRequested() const { return menuExitRequested_; }
     int getActiveWaypointIndex() const { return activeWaypointIndex_; }
     const MissionDefinition &getMission() const { return currentMission_; }
     const MissionMetrics &getMetrics() const { return metrics_; }
-    void confirmReadyToFly();
 
   private:
     // Estado de la misión
     MissionPhase phase_;
     bool hasMission_;
     MissionDefinition currentMission_;
-    bool menuExitRequested_;
 
     // Waypoints y progreso
     int activeWaypointIndex_;

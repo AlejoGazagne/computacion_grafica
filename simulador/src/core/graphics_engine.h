@@ -30,7 +30,6 @@
 #include "scene/mesh.h"
 #include "scene/model.h"
 #include "scene/camera.h"
-#include "scene/terrain.h"
 #include "scene/chunked_terrain.h"
 
 // Input System
@@ -304,12 +303,6 @@ private:
       return false;
     }
 
-    if (!shader_manager.loadShader("instanced_3d", "shaders/vertex_instanced.glsl", "shaders/fragment_instanced.glsl"))
-    {
-      std::cerr << "Failed to load instanced 3D shader" << std::endl;
-      return false;
-    }
-
     // Shader para shadow mapping (depth pass)
     if (!shader_manager.loadShader("depth", "shaders/depth.vert", "shaders/depth.frag"))
     {
@@ -494,26 +487,20 @@ private:
     glfwGetWindowSize(context_->getWindow(), &width, &height);
 
     auto &shader_manager = ShaderManager::getInstance();
-    if (!shader_manager.loadShader("bank_angle_shader", "shaders/vertex_bank_angle.glsl", "shaders/fragment_bank_angle.glsl"))
+    if (!shader_manager.loadShader("hud_shader", "shaders/vertex_hud.glsl", "shaders/fragment_hud.glsl"))
     {
-      std::cerr << "Failed to load bank angle shader" << std::endl;
-      return false;
-    }
-    if (!shader_manager.loadShader("pitch_ladder_shader", "shaders/vertex_hud.glsl", "shaders/fragment_hud.glsl"))
-    {
-      std::cerr << "Failed to load pitch ladder shader" << std::endl;
+      std::cerr << "Failed to load HUD shader" << std::endl;
       return false;
     }
 
-    Shader *bank_shader = shader_manager.getShader("bank_angle_shader");
-    Shader *ladder_shader = shader_manager.getShader("pitch_ladder_shader");
+    Shader *hud_shader = shader_manager.getShader("hud_shader");
 
-    bank_angle_indicator_ = std::make_unique<hud::BankAngleIndicator>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), bank_shader);
-    pitch_ladder_ = std::make_unique<hud::PitchLadder>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), ladder_shader);
-    altimeter_ = std::make_unique<hud::Altimeter>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), ladder_shader);
-    speed_indicator_ = std::make_unique<hud::SpeedIndicator>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), ladder_shader);
-    vsi_ = std::make_unique<hud::VerticalSpeedIndicator>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), ladder_shader);
-    waypoint_indicator_ = std::make_unique<hud::WaypointIndicator>(glm::vec2(-0.25f, 0.50f), glm::vec2(0.35f, 0.35f), ladder_shader);
+    bank_angle_indicator_ = std::make_unique<hud::BankAngleIndicator>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), hud_shader);
+    pitch_ladder_ = std::make_unique<hud::PitchLadder>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), hud_shader);
+    altimeter_ = std::make_unique<hud::Altimeter>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), hud_shader);
+    speed_indicator_ = std::make_unique<hud::SpeedIndicator>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), hud_shader);
+    vsi_ = std::make_unique<hud::VerticalSpeedIndicator>(glm::vec2(0.0f, 0.0f), glm::vec2(1.0f, 1.0f), hud_shader);
+    waypoint_indicator_ = std::make_unique<hud::WaypointIndicator>(glm::vec2(-0.25f, 0.50f), glm::vec2(0.35f, 0.35f), hud_shader);
 
     if (speed_indicator_)
     {
@@ -846,6 +833,8 @@ private:
       input_state_.e_pressed = false;
     }
 
+    // TODO sacar reset de camara y toggle de joystick
+
     // J - Toggle Joystick Control
     if (input_manager.isKeyPressed(InputManager::KEY_J))
     {
@@ -1035,8 +1024,6 @@ private:
       {
         elevator_trim_ -= 0.01f;
         elevator_trim_ = glm::clamp(elevator_trim_, -0.3f, 0.3f);
-        std::cout << "Elevator trim: " << elevator_trim_ << " (nose "
-                  << (elevator_trim_ < 0 ? "UP" : "DOWN") << ")" << std::endl;
         input_state_.num7_pressed = true;
       }
     }
@@ -1052,8 +1039,6 @@ private:
       {
         elevator_trim_ += 0.01f; // Positivo = nariz abajo
         elevator_trim_ = glm::clamp(elevator_trim_, -0.3f, 0.3f);
-        std::cout << "Elevator trim: " << elevator_trim_ << " (nose "
-                  << (elevator_trim_ < 0 ? "UP" : "DOWN") << ")" << std::endl;
         input_state_.num8_pressed = true;
       }
     }
@@ -1070,7 +1055,6 @@ private:
         elevator_trim_ = -0.09024f;
         aileron_trim_ = 0.0f;
         rudder_trim_ = 0.0f;
-        std::cout << "Trim reset to default (level flight)" << std::endl;
         input_state_.num9_pressed = true;
       }
     }
@@ -1252,7 +1236,7 @@ private:
       chunked_terrain_->draw();
     }
 
-    // Avión (siempre renderizar en shadow pass para que proyecte sombra)
+    // Avión
     if (aircraft_model_ && flight_dynamics_)
     {
       // Usar renderDepthOnly para evitar configurar uniforms que no existen en depth shader

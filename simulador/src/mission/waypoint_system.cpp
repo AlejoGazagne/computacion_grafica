@@ -97,11 +97,7 @@ namespace Mission
 
     if (nextWaypointIndex == -1)
     {
-      // Si todos fueron capturados, marcar completion
-      if (!runtime.isCompleted())
-      {
-        runtime.markCompletion();
-      }
+      // Todos los waypoints fueron capturados
       flightData.hasActiveWaypoint = false;
       return;
     }

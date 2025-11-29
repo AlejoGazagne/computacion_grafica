@@ -12,7 +12,7 @@ namespace Mission
 {
 
   MissionRuntime::MissionRuntime()
-      : phase_(MissionPhase::Briefing), hasMission_(false), menuExitRequested_(false), activeWaypointIndex_(0), speedAccumulator_(0.0f)
+      : phase_(MissionPhase::InProgress), hasMission_(false), activeWaypointIndex_(0), speedAccumulator_(0.0f)
   {
   }
 
@@ -23,8 +23,7 @@ namespace Mission
     // Guardar misión y reiniciar estado base
     currentMission_ = mission;
     hasMission_ = true;
-    phase_ = MissionPhase::InProgress; // Comenzar directamente en progreso
-    menuExitRequested_ = false;
+    phase_ = MissionPhase::InProgress;
 
     // Inicializar waypoints (ninguno capturado al comenzar)
     activeWaypointIndex_ = 0;
@@ -39,8 +38,6 @@ namespace Mission
 
     // Crear contexto de inicio
     MissionStartContext context;
-    context.countdownSeconds = 0;
-    context.showBriefing = false;
     context.startPosition = mission.startPosition;
     context.startOrientation = mission.startOrientation;
     context.recommendedSpeed = mission.recommendedSpeed;
@@ -49,16 +46,6 @@ namespace Mission
     std::cout << "[MissionRuntime] Misión iniciada con " << metrics_.totalWaypoints << " waypoints" << std::endl;
 
     return context;
-  }
-
-  void MissionRuntime::confirmReadyToFly()
-  {
-    if (phase_ == MissionPhase::Briefing)
-    {
-      phase_ = MissionPhase::InProgress;
-      missionStartTime_ = std::chrono::steady_clock::now();
-      std::cout << "[MissionRuntime] Misión iniciada - Buena suerte, piloto!" << std::endl;
-    }
   }
 
   void MissionRuntime::markWaypointCaptured(int waypointIndex)
@@ -85,53 +72,16 @@ namespace Mission
       // Verificar si se completó la misión
       if (metrics_.waypointsCaptured >= metrics_.totalWaypoints)
       {
-        markCompletion();
+        phase_ = MissionPhase::FreeFlight;
+
+        // Calcular tiempo total
+        auto now = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - missionStartTime_);
+        metrics_.totalTimeSeconds = static_cast<float>(duration.count());
+
+        std::cout << "[MissionRuntime] Misión completada en " << metrics_.totalTimeSeconds << " segundos" << std::endl;
       }
     }
-  }
-
-  void MissionRuntime::markCompletion()
-  {
-    if (phase_ != MissionPhase::Completed && phase_ != MissionPhase::FreeFlight)
-    {
-      phase_ = MissionPhase::Completed;
-
-      // Calcular tiempo total
-      auto now = std::chrono::steady_clock::now();
-      auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - missionStartTime_);
-      metrics_.totalTimeSeconds = static_cast<float>(duration.count());
-
-      std::cout << "[MissionRuntime] Misión completada en " << metrics_.totalTimeSeconds << " segundos" << std::endl;
-    }
-  }
-
-  void MissionRuntime::continueFreeFlight()
-  {
-    if (phase_ == MissionPhase::Completed)
-    {
-      phase_ = MissionPhase::FreeFlight;
-      std::cout << "[MissionRuntime] Modo vuelo libre activado" << std::endl;
-    }
-  }
-
-  void MissionRuntime::requestMenuExit()
-  {
-    menuExitRequested_ = true;
-    std::cout << "[MissionRuntime] Retorno al menú solicitado" << std::endl;
-  }
-
-  void MissionRuntime::reset()
-  {
-    std::cout << "[MissionRuntime] Reiniciando runtime" << std::endl;
-
-    phase_ = MissionPhase::Briefing;
-    hasMission_ = false;
-    menuExitRequested_ = false;
-    activeWaypointIndex_ = 0;
-    waypointsCaptured_.clear();
-
-    metrics_ = MissionMetrics();
-    speedAccumulator_ = 0.0f;
   }
 
   void MissionRuntime::updateProgress(const hud::FlightData &flightData, float dt)

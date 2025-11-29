@@ -31,28 +31,10 @@ struct DirLight {
 };
 uniform DirLight dirLight;
 
-// Luz puntual (hasta 4)
-struct PointLight {
-    vec3 position;
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
-    float constant;
-    float linear;
-    float quadratic;
-    bool enabled;
-};
-#define MAX_POINT_LIGHTS 4
-uniform PointLight pointLights[MAX_POINT_LIGHTS];
-uniform int numPointLights;
-
-// Propiedades del material
-uniform float shininess = 32.0;
-
 /**
  * Calcula si un fragmento está en sombra usando Shadow Mapping con PCF
  * 
- * Basado en técnica de Shadow Mapping vista en teoría:
+ * Basado en técnica de Shadow Mapping:
  * 1. Transformar coordenadas de clip space [-1,1] a texture space [0,1]
  * 2. Comparar profundidad del fragmento con la profundidad del shadow map
  * 3. Aplicar PCF (Percentage Closer Filtering) para suavizar bordes
@@ -116,29 +98,6 @@ vec3 CalcDirLight(DirLight light, vec3 normal, vec3 baseColor) {
     return ambient + (1.0 - shadow) * diffuse;
 }
 
-// Función para calcular luz puntual
-vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 baseColor) {
-    if (!light.enabled) return vec3(0.0);
-    
-    vec3 lightDir = normalize(light.position - fragPos);
-    
-    // Ambient
-    vec3 ambient = light.ambient * baseColor;
-    
-    // Diffuse
-    float diff = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = light.diffuse * diff * baseColor;
-    
-    // Atenuación
-    float distance = length(light.position - fragPos);
-    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
-    
-    ambient *= attenuation;
-    diffuse *= attenuation;
-    
-    return ambient + diffuse;
-}
-
 void main() {
     vec3 norm = normalize(Normal);
     
@@ -162,11 +121,6 @@ void main() {
     
     // Luz direccional (sol)
     result += CalcDirLight(dirLight, norm, baseColor);
-    
-    // Luces puntuales
-    for (int i = 0; i < numPointLights && i < MAX_POINT_LIGHTS; i++) {
-        result += CalcPointLight(pointLights[i], norm, FragPos, baseColor);
-    }
     
     // Clamp para evitar saturación
     result = clamp(result, 0.0, 1.0);

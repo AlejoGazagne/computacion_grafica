@@ -14,8 +14,7 @@ namespace Scene
 
     Camera::Camera()
         : config_(), position_(config_.position), yaw_(DEFAULT_YAW), pitch_(DEFAULT_PITCH), roll_(0.0f),
-          first_mouse_(true), last_x_(0.0f), last_y_(0.0f), matrices_dirty_(true),
-          orbit_distance_(5.0f), orbit_target_(0.0f),
+          matrices_dirty_(true),
           cinematic_forward_distance_(100.0f), cinematic_lateral_offset_(50.0f),
           cinematic_height_offset_(20.0f), cinematic_max_distance_relocate_(150.0f),
           cinematic_smooth_factor_(0.0f), cinematic_target_position_(0.0f),
@@ -31,8 +30,7 @@ namespace Scene
 
     Camera::Camera(const CameraConfig &config)
         : config_(config), position_(config_.position), yaw_(DEFAULT_YAW), pitch_(DEFAULT_PITCH), roll_(0.0f),
-          first_mouse_(true), last_x_(0.0f), last_y_(0.0f), matrices_dirty_(true),
-          orbit_distance_(5.0f), orbit_target_(config_.target),
+          matrices_dirty_(true),
           cinematic_forward_distance_(100.0f), cinematic_lateral_offset_(50.0f),
           cinematic_height_offset_(20.0f), cinematic_max_distance_relocate_(150.0f),
           cinematic_smooth_factor_(0.0f), cinematic_target_position_(0.0f),
@@ -41,28 +39,7 @@ namespace Scene
     {
 
         world_up_ = config_.up;
-
-        // Calcular yaw y pitch basándose en target
-        if (config_.type == CameraType::ORBITAL)
-        {
-            orbit_distance_ = glm::length(position_ - orbit_target_);
-        }
-
-        lookAt(config_.target);
-        updateViewMatrix();
-        updateProjectionMatrix();
-    }
-
-    Camera::Camera(const glm::vec3 &position, const glm::vec3 &target)
-        : Camera()
-    {
-        position_ = position;
-        config_.position = position;
-        config_.target = target;
-        orbit_target_ = target;
-        orbit_distance_ = glm::length(position_ - target);
-
-        lookAt(target);
+        updateCameraVectors();
         updateViewMatrix();
         updateProjectionMatrix();
     }
@@ -93,14 +70,7 @@ namespace Scene
 
     void Camera::updateViewMatrix() const
     {
-        if (config_.type == CameraType::ORBITAL)
-        {
-            view_matrix_ = glm::lookAt(position_, orbit_target_, up_);
-        }
-        else
-        {
-            view_matrix_ = glm::lookAt(position_, position_ + front_, up_);
-        }
+        view_matrix_ = glm::lookAt(position_, position_ + front_, up_);
         matrices_dirty_ = false;
     }
 
@@ -118,8 +88,6 @@ namespace Scene
         config_ = config;
         position_ = config_.position;
         world_up_ = config_.up;
-        orbit_target_ = config_.target;
-
         updateCameraVectors();
         updateProjectionMatrix();
         matrices_dirty_ = true;
@@ -128,38 +96,20 @@ namespace Scene
     void Camera::setType(CameraType type)
     {
         config_.type = type;
-
-        if (type == CameraType::ORBITAL)
-        {
-            orbit_distance_ = glm::length(position_ - orbit_target_);
-        }
-
         matrices_dirty_ = true;
     }
 
     void Camera::setPosition(const glm::vec3 &position)
     {
+        config_.type = CameraType::FIRST_PERSON;
         position_ = position;
         config_.position = position;
-
-        if (config_.type == CameraType::ORBITAL)
-        {
-            orbit_distance_ = glm::length(position_ - orbit_target_);
-        }
-
         matrices_dirty_ = true;
     }
 
     void Camera::setTarget(const glm::vec3 &target)
     {
         config_.target = target;
-        orbit_target_ = target;
-
-        if (config_.type == CameraType::ORBITAL)
-        {
-            orbit_distance_ = glm::length(position_ - orbit_target_);
-        }
-
         lookAt(target);
     }
 
@@ -189,6 +139,7 @@ namespace Scene
                                       float yaw, float pitch, float roll,
                                       float distance, float height_offset)
     {
+        config_.type = CameraType::THIRD_PERSON;
         setRotation(yaw, pitch, roll);
         glm::vec3 camera_position = target_position - front_ * distance + glm::vec3(0.0f, height_offset, 0.0f);
         position_ = camera_position;
@@ -201,6 +152,7 @@ namespace Scene
                                     const glm::vec3 &target_up,
                                     float /*delta_time*/)
     {
+        config_.type = CameraType::CINEMATIC;
         cinematic_target_position_ = target_position;
 
         // Calcular distancia actual entre la cámara y el avión
@@ -267,13 +219,6 @@ namespace Scene
         updateProjectionMatrix();
     }
 
-    void Camera::setOrthographic(float left, float right, float bottom, float top, float near_plane, float far_plane)
-    {
-        config_.near_plane = near_plane;
-        config_.far_plane = far_plane;
-        projection_matrix_ = glm::ortho(left, right, bottom, top, near_plane, far_plane);
-    }
-
     void Camera::setAspectRatio(float aspect_ratio)
     {
         config_.aspect_ratio = aspect_ratio;
@@ -321,83 +266,15 @@ namespace Scene
         // No hay entrada de teclado para movimiento de cámara
     }
 
-    void Camera::processMouseMovement(double xpos, double ypos)
-    {
-        if (first_mouse_)
-        {
-            last_x_ = static_cast<float>(xpos);
-            last_y_ = static_cast<float>(ypos);
-            first_mouse_ = false;
-        }
-
-        last_x_ = static_cast<float>(xpos);
-        last_y_ = static_cast<float>(ypos);
-    }
-
     void Camera::processMouseScroll(float yoffset)
     {
-        if (config_.type == CameraType::ORBITAL)
-        {
-            orbit_distance_ -= yoffset * config_.zoom_sensitivity;
-            orbit_distance_ = std::max(orbit_distance_, 1.0f);
-
-            // Actualizar posición orbital
-            glm::vec3 direction = glm::normalize(position_ - orbit_target_);
-            position_ = orbit_target_ + direction * orbit_distance_;
-            matrices_dirty_ = true;
-        }
-        else
-        {
-            zoom(yoffset);
-        }
-    }
-
-    void Camera::move(CameraMovement direction, float delta_time)
-    {
-        float velocity = config_.movement_speed * delta_time;
-        float roll_speed = 45.0f; // Grados por segundo de roll
-
-        switch (direction)
-        {
-        case CameraMovement::FORWARD:
-            position_ += front_ * velocity;
-            break;
-        case CameraMovement::BACKWARD:
-            position_ -= front_ * velocity;
-            break;
-        case CameraMovement::LEFT:
-            position_ -= right_ * velocity;
-            break;
-        case CameraMovement::RIGHT:
-            position_ += right_ * velocity;
-            break;
-        case CameraMovement::UP:
-            position_ += up_ * velocity;
-            break;
-        case CameraMovement::DOWN:
-            position_ -= up_ * velocity;
-            break;
-        case CameraMovement::ROLL_LEFT:
-            roll_ -= roll_speed * delta_time;
-            updateCameraVectors();
-            break;
-        case CameraMovement::ROLL_RIGHT:
-            roll_ += roll_speed * delta_time;
-            updateCameraVectors();
-            break;
-        }
-
-        config_.position = position_;
-        matrices_dirty_ = true;
+        zoom(yoffset);
     }
 
     void Camera::rotate(float yaw_offset, float pitch_offset)
     {
         yaw_ += yaw_offset;
         pitch_ += pitch_offset;
-
-        // Sin restricciones de pitch para simulador de vuelo - permite loops completos
-        // pitch_ = std::clamp(pitch_, config_.min_pitch, config_.max_pitch); // REMOVIDO
 
         updateCameraVectors();
     }
@@ -407,49 +284,6 @@ namespace Scene
         config_.fov -= offset * config_.zoom_sensitivity;
         config_.fov = std::clamp(config_.fov, config_.min_fov, config_.max_fov);
         updateProjectionMatrix();
-    }
-
-    void Camera::setOrbitTarget(const glm::vec3 &target)
-    {
-        orbit_target_ = target;
-        config_.target = target;
-
-        if (config_.type == CameraType::ORBITAL)
-        {
-            orbit_distance_ = glm::length(position_ - orbit_target_);
-            matrices_dirty_ = true;
-        }
-    }
-
-    void Camera::setOrbitDistance(float distance)
-    {
-        orbit_distance_ = std::max(distance, 0.1f);
-
-        if (config_.type == CameraType::ORBITAL)
-        {
-            glm::vec3 direction = glm::normalize(position_ - orbit_target_);
-            position_ = orbit_target_ + direction * orbit_distance_;
-            config_.position = position_;
-            matrices_dirty_ = true;
-        }
-    }
-
-    void Camera::orbitAroundTarget(float yaw_offset, float pitch_offset)
-    {
-        yaw_ += yaw_offset;
-        pitch_ += pitch_offset;
-
-        // Sin restricciones de pitch para simulador de vuelo
-
-        // Calcular nueva posición orbital
-        float x = orbit_distance_ * cos(glm::radians(pitch_)) * cos(glm::radians(yaw_));
-        float y = orbit_distance_ * sin(glm::radians(pitch_));
-        float z = orbit_distance_ * cos(glm::radians(pitch_)) * sin(glm::radians(yaw_));
-
-        position_ = orbit_target_ + glm::vec3(x, y, z);
-        config_.position = position_;
-
-        updateCameraVectors();
     }
 
     void Camera::lookAt(const glm::vec3 &target)
@@ -479,19 +313,7 @@ namespace Scene
         position_ = config_.position;
         yaw_ = DEFAULT_YAW;
         pitch_ = DEFAULT_PITCH;
-        first_mouse_ = true;
-
-        if (config_.type == CameraType::ORBITAL)
-        {
-            orbit_target_ = config_.target;
-            orbit_distance_ = glm::length(position_ - orbit_target_);
-            lookAt(orbit_target_);
-        }
-        else
-        {
-            updateCameraVectors();
-        }
-
+        updateCameraVectors();
         matrices_dirty_ = true;
     }
 
@@ -529,24 +351,6 @@ namespace Scene
         return (ndc.x >= -1.0f && ndc.x <= 1.0f &&
                 ndc.y >= -1.0f && ndc.y <= 1.0f &&
                 ndc.z >= -1.0f && ndc.z <= 1.0f);
-    }
-
-    bool Camera::isSphereInFrustum(const glm::vec3 &center, float radius) const
-    {
-        // Verificar si la esfera está completamente fuera del frustum
-        glm::vec4 clip_space = getViewProjectionMatrix() * glm::vec4(center, 1.0f);
-
-        if (clip_space.w <= 0)
-            return false;
-
-        glm::vec3 ndc = glm::vec3(clip_space) / clip_space.w;
-
-        // Aproximación simple: verificar si el centro está dentro del frustum extendido
-        float extended_bound = 1.0f + radius; // Aproximación
-
-        return (ndc.x >= -extended_bound && ndc.x <= extended_bound &&
-                ndc.y >= -extended_bound && ndc.y <= extended_bound &&
-                ndc.z >= -extended_bound && ndc.z <= extended_bound);
     }
 
     // === Implementación de CameraController ===
@@ -630,13 +434,9 @@ namespace Scene
         }
     }
 
-    void CameraController::mouseCallback(GLFWwindow * /*window*/, double xpos, double ypos)
+    void CameraController::mouseCallback(GLFWwindow * /*window*/, double /*xpos*/, double /*ypos*/)
     {
-        Camera *active_camera = getActiveCamera();
-        if (active_camera && mouse_captured_)
-        {
-            active_camera->processMouseMovement(xpos, ypos);
-        }
+        // No hay movimiento de cámara por mouse
     }
 
     void CameraController::scrollCallback(GLFWwindow * /*window*/, double /*xoffset*/, double yoffset)
@@ -658,28 +458,6 @@ namespace Scene
         config.movement_speed = 50.0f;    // Velocidad más rápida para navegar el terreno grande
         config.mouse_sensitivity = 0.05f; // Sensibilidad reducida para movimiento más suave
         config.far_plane = 100000.0f;     // Far plane extremadamente lejano
-        return config;
-    }
-
-    CameraConfig CameraController::getOrbitalConfig()
-    {
-        CameraConfig config;
-        config.position = glm::vec3(0.0f, 0.0f, 5.0f);
-        config.target = glm::vec3(0.0f, 0.0f, 0.0f);
-        config.type = CameraType::ORBITAL;
-        config.movement_speed = 2.0f;
-        config.mouse_sensitivity = 0.1f; // Sensibilidad reducida para movimiento más suave
-        return config;
-    }
-
-    CameraConfig CameraController::getOrthographicConfig()
-    {
-        CameraConfig config;
-        config.position = glm::vec3(0.0f, 5.0f, 0.0f);
-        config.target = glm::vec3(0.0f, 0.0f, 0.0f);
-        config.type = CameraType::ORTHOGRAPHIC;
-        config.fov = 60.0f;
-        config.movement_speed = 3.0f;
         return config;
     }
 

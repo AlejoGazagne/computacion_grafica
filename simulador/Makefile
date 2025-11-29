@@ -33,7 +33,6 @@ BUFFER_OBJECTS_CXX = graphics/rendering/buffer_objects
 SKYBOX_CXX = graphics/skybox/skybox
 MESH_CXX = scene/mesh
 CAMERA_CXX = scene/camera
-TERRAIN_CXX = scene/terrain
 CHUNKED_TERRAIN_CXX = scene/chunked_terrain
 MODEL_CXX = scene/model
 INPUT_MANAGER_CXX = input/input_manager
@@ -67,7 +66,6 @@ ADDITIONAL_OBJS = \
 	$(BUILD_DIR)/$(SKYBOX_CXX).o \
 	$(BUILD_DIR)/$(MESH_CXX).o \
 	$(BUILD_DIR)/$(CAMERA_CXX).o \
-	$(BUILD_DIR)/$(TERRAIN_CXX).o \
 	$(BUILD_DIR)/$(CHUNKED_TERRAIN_CXX).o \
 	$(BUILD_DIR)/$(MODEL_CXX).o \
 	$(BUILD_DIR)/$(INPUT_MANAGER_CXX).o \

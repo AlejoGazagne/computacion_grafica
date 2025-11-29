@@ -1,5 +1,4 @@
 #include "chunked_terrain.h"
-#include "terrain.h" // Para reutilizar tipos y coherencia
 #include "../utils/perlin_noise.h"
 #include <glad/glad.h>
 #include <cmath>

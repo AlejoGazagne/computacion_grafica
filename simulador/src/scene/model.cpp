@@ -44,14 +44,7 @@ namespace Scene
       // Configurar si usar textura o no basado en cada mesh
       shader->setBool("useTexture", mesh->hasTexture());
 
-      if (mesh->hasInstanceData())
-      {
-        mesh->drawInstanced(mesh->getInstanceCount());
-      }
-      else
-      {
-        mesh->draw();
-      }
+      mesh->draw();
     }
 
     shader->unuse();
