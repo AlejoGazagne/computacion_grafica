@@ -1,4 +1,3 @@
-// NEW FILE: src/scene/model.h
 #ifndef MODEL_H
 #define MODEL_H
 
@@ -10,17 +9,14 @@
 #include <vector>
 #include <string>
 
-namespace Scene
-{
+namespace Scene {
 
-  struct Transform
-  {
+  struct Transform {
     glm::vec3 position = glm::vec3(0.0f);
     glm::vec3 rotation = glm::vec3(0.0f); // Euler angles en radianes
     glm::vec3 scale = glm::vec3(1.0f);
 
-    glm::mat4 getMatrix() const
-    {
+    glm::mat4 getMatrix() const {
       glm::mat4 mat = glm::mat4(1.0f);
       mat = glm::translate(mat, position);
       mat = glm::rotate(mat, rotation.y, glm::vec3(0, 1, 0));

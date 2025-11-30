@@ -31,14 +31,7 @@ namespace Mission
   }
   void WaypointRenderer::cleanup()
   {
-    if (vao_)
-      glDeleteVertexArrays(1, &vao_);
-    if (vbo_)
-      glDeleteBuffers(1, &vbo_);
-    if (ebo_)
-      glDeleteBuffers(1, &ebo_);
-
-    vao_ = vbo_ = ebo_ = 0;
+    vertex_array_.reset();
     shader_ = nullptr;
   }
 
@@ -93,28 +86,23 @@ namespace Mission
 
     indexCount_ = static_cast<int>(indices.size());
 
-    // Reservar buffers en GPU y subir datos
-    glGenVertexArrays(1, &vao_);
-    glGenBuffers(1, &vbo_);
-    glGenBuffers(1, &ebo_);
+    // Usar abstracción de buffers
+    vertex_array_ = std::make_unique<Graphics::Rendering::VertexArray>();
 
-    glBindVertexArray(vao_);
+    auto vbo = std::make_unique<Graphics::Rendering::VertexBuffer>(Graphics::Rendering::BufferUsage::STATIC_DRAW);
+    vbo->setData(vertices);
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+    auto ibo = std::make_unique<Graphics::Rendering::IndexBuffer>(Graphics::Rendering::BufferUsage::STATIC_DRAW);
+    ibo->setIndices(indices);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+    vertex_array_->addVertexBuffer(std::move(vbo));
+    vertex_array_->setIndexBuffer(std::move(ibo));
 
     // Attribute 0: posición (vec3)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(0);
+    vertex_array_->addFloatAttribute(0, 3, 6 * sizeof(float), (void *)0);
 
     // Attribute 1: normal (vec3)
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    glBindVertexArray(0);
+    vertex_array_->addFloatAttribute(1, 3, 6 * sizeof(float), (void *)(3 * sizeof(float)));
   }
 
   void WaypointRenderer::drawWaypoint(const glm::mat4 &view, const glm::mat4 &proj,
@@ -137,9 +125,12 @@ namespace Mission
     shader_->setFloat("waypointAlpha", color.a);
     shader_->setBool("isActive", isActive);
 
-    glBindVertexArray(vao_);
-    glDrawElements(GL_TRIANGLES, indexCount_, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    if (vertex_array_)
+    {
+        vertex_array_->bind();
+        glDrawElements(GL_TRIANGLES, indexCount_, GL_UNSIGNED_INT, 0);
+        vertex_array_->unbind();
+    }
   }
 
 } // namespace Mission

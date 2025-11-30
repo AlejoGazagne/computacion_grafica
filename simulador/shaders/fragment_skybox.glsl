@@ -7,7 +7,7 @@ uniform samplerCube skybox;
 
 // Niebla
 uniform bool fogEnabled = true;
-uniform float fogDensity = 0.0001;         // misma magnitud que el terreno
+uniform float fogDensity = 0.0001;
 uniform vec3 fogColor = vec3(0.85, 0.90, 0.95);
 
 // Controles específicos del skybox para mapear densidad a ángulo de horizonte

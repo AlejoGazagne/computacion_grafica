@@ -12,6 +12,7 @@ extern "C"
 #include <vector>
 
 #include "graphics/shaders/shader_manager.h"
+#include "graphics/rendering/buffer_objects.h"
 #include "hud/instrumentbase.h"
 #include "hud/huddef.h"
 
@@ -19,7 +20,7 @@ namespace hud
 {
 
     /**
-     * @brief Indicador de Pitch Ladder para simulador de vuelo
+     * @brief Indicador de Pitch Ladder
      * Muestra una mira central y líneas horizontales que representan diferentes ángulos de pitch
      */
     class PitchLadder : public hud::InstrumentBase
@@ -30,6 +31,10 @@ namespace hud
         static constexpr float PITCH_STEP = 10.0f;        // Cada línea representa 10° de diferencia
         static constexpr float MAX_PITCH_DISPLAY = 40.0f; // Mostrar hasta ±40°
         float pitch_angle_deg_ = 0.0f;                    // [deg]
+
+        // Resources
+        std::unique_ptr<Graphics::Rendering::VertexArray> vertex_array_;
+        Graphics::Rendering::VertexBuffer* vertex_buffer_;
 
         bool initializeOpenGL();
         void cleanup();

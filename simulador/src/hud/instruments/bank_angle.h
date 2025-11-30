@@ -12,6 +12,7 @@ extern "C"
 #include <vector>
 
 #include "graphics/shaders/shader_manager.h"
+#include "graphics/rendering/buffer_objects.h"
 #include "hud/instrumentbase.h"
 #include "hud/huddef.h"
 
@@ -19,7 +20,7 @@ namespace hud
 {
 
     /**
-     * @brief Indicador de Bank Angle para simulador de vuelo
+     * @brief Indicador de Bank Angle
      * Muestra la inclinación lateral del avión en la parte inferior de la pantalla
      */
     class BankAngleIndicator : public hud::InstrumentBase
@@ -27,6 +28,10 @@ namespace hud
     private:
         // Estado
         float bank_angle_deg_ = 0.0f; // [deg]
+
+        // Recursos OpenGL gestionados por RAII
+        std::unique_ptr<Graphics::Rendering::VertexArray> vertex_array_;
+        Graphics::Rendering::VertexBuffer* vertex_buffer_; // Referencia observadora (propiedad del VAO)
 
         bool initializeOpenGL();
         void cleanup();

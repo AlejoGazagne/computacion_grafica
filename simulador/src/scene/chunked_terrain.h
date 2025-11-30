@@ -4,6 +4,8 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <memory>
+#include "graphics/rendering/buffer_objects.h"
 
 namespace Scene
 {
@@ -59,10 +61,10 @@ namespace Scene
         // Actualiza la malla de chunks alrededor de la cámara
         void update(const glm::vec3 &camera_pos);
 
-        // Dibuja todos los chunks activos (asume que el shader ya tiene view/projection/model = I)
+        // Dibuja todos los chunks activos
         void draw() const;
 
-        // Altura en un punto del mundo (coincide con la función usada para generar)
+        // Altura en un punto del mundo
         float getHeightAt(float x, float z) const;
 
     private:
@@ -83,9 +85,7 @@ namespace Scene
 
         struct Chunk
         {
-            unsigned int VAO = 0;
-            unsigned int VBO = 0;
-            unsigned int EBO = 0;
+            std::unique_ptr<Graphics::Rendering::VertexArray> vertex_array;
             unsigned int index_count = 0;
             glm::vec2 origin; // centro del chunk en XZ (mundo)
         };
@@ -95,7 +95,7 @@ namespace Scene
         void destroyChunk(Chunk &c);
         void evictFarChunks(int center_gx, int center_gz);
 
-        // Generación de geometría (similar a Terrain::generateVertices/Indices pero con offset)
+        // Generación de geometría
         void buildChunkMesh(float origin_x, float origin_z,
                             std::vector<float> &out_vertices,
                             std::vector<unsigned int> &out_indices);

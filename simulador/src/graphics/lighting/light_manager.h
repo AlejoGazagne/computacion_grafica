@@ -10,7 +10,7 @@ namespace Graphics
     {
 
         /**
-         * @brief Gestor simplificado de luz solar para el simulador
+         * @brief Gestor de luz solar para el simulador
          */
         class LightManager
         {

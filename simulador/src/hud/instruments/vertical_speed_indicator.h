@@ -3,7 +3,9 @@
 
 #include <glm/glm.hpp>
 #include "../../include/hud/instrumentbase.h"
+#include "graphics/rendering/buffer_objects.h"
 #include <vector>
+#include <memory>
 
 namespace hud
 {
@@ -25,6 +27,10 @@ namespace hud
   private:
     bool initializeOpenGL();
     void cleanup();
+
+    // Resources
+    std::unique_ptr<Graphics::Rendering::VertexArray> vertex_array_;
+    Graphics::Rendering::VertexBuffer* vertex_buffer_;
 
     void appendLine(std::vector<float> &v, float x1, float y1, float x2, float y2);
     void drawScale(std::vector<float> &lines);

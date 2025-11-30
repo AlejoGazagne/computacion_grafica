@@ -20,22 +20,25 @@ namespace hud
   {
   }
 
+  WaypointIndicator::~WaypointIndicator()
+  {
+      vertex_array_.reset();
+      vertex_buffer_ = nullptr;
+      clean();
+  }
+
   void WaypointIndicator::initialize()
   {
-    // Initialize VAO/VBO for dynamic line rendering
-    glGenVertexArrays(1, &vao_);
-    glGenBuffers(1, &vbo_);
-
-    glBindVertexArray(vao_);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-
-    // Allocate space for dynamic vertices
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * 500, nullptr, GL_DYNAMIC_DRAW);
-
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(0);
-
-    glBindVertexArray(0);
+    vertex_array_ = std::make_unique<Graphics::Rendering::VertexArray>();
+    
+    auto vb = std::make_unique<Graphics::Rendering::VertexBuffer>(Graphics::Rendering::BufferUsage::DYNAMIC_DRAW);
+    vertex_buffer_ = vb.get();
+    
+    // Allocate space for dynamic vertices (2000 floats * 2 coords)
+    vertex_buffer_->setData<float>(nullptr, 4000);
+    
+    vertex_array_->addVertexBuffer(std::move(vb));
+    vertex_array_->addFloatAttribute(0, 2, 2 * sizeof(float), (void *)0);
   }
 
   void WaypointIndicator::update(const FlightData &data)
@@ -64,12 +67,14 @@ namespace hud
     }
 
     shader_->use();
-    glBindVertexArray(vao_);
+    if (vertex_array_)
+        vertex_array_->bind();
 
     renderCompassRose();
     renderVerticalIndicator();
 
-    glBindVertexArray(0);
+    if (vertex_array_)
+        vertex_array_->unbind();
   }
 
   void WaypointIndicator::renderCompassRose()
@@ -117,8 +122,8 @@ namespace hud
     // Draw all tick marks
     if (!vertices.empty())
     {
-      glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-      glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(float), vertices.data());
+      if (vertex_buffer_)
+          vertex_buffer_->updateData(vertices);
 
       shader_->setVec4("color", tickColor);
 
@@ -142,8 +147,8 @@ namespace hud
 
       if (!numberVerts.empty())
       {
-        glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, numberVerts.size() * sizeof(float), numberVerts.data());
+        if (vertex_buffer_)
+            vertex_buffer_->updateData(numberVerts);
 
         shader_->setVec4("color", glm::vec4(1.0f, 0.2f, 0.7f, 0.9f));
 
@@ -189,8 +194,8 @@ namespace hud
     vertices.push_back(right.y);
 
     // Draw arrow
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(float), vertices.data());
+    if (vertex_buffer_)
+        vertex_buffer_->updateData(vertices);
 
     shader_->setVec4("color", pointerColor);
 
@@ -223,8 +228,8 @@ namespace hud
     vertices.push_back(indicatorY);
 
     // Draw vertical indicator lines
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(float), vertices.data());
+    if (vertex_buffer_)
+        vertex_buffer_->updateData(vertices);
 
     shader_->setVec4("color", glm::vec4(1.0f, 0.2f, 0.7f, 0.6f));
 
@@ -326,8 +331,8 @@ namespace hud
     // Draw arrow
     if (!vertices.empty())
     {
-      glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-      glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(float), vertices.data());
+      if (vertex_buffer_)
+          vertex_buffer_->updateData(vertices);
 
       shader_->setVec4("color", arrowColor);
       glLineWidth(3.0f);
@@ -349,8 +354,8 @@ namespace hud
       vertices.push_back(y);
     }
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(float), vertices.data());
+    if (vertex_buffer_)
+        vertex_buffer_->updateData(vertices);
 
     shader_->setVec4("color", color);
 

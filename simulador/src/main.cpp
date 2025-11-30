@@ -4,7 +4,6 @@
  * @version 2.0
  *
  * Punto de entrada principal del simulador de vuelo.
- * El motor gráfico ha sido modularizado en graphics_engine.
  */
 
 #include <iostream>

@@ -198,25 +198,5 @@ namespace Graphics
                 glBindTexture(GL_TEXTURE_2D, 0);
             }
         }
-
-        // void Mesh::drawInstanced(unsigned int count) const
-        // {
-        //     if (!initialized_)
-        //         return;
-
-        //     vao_->bind();
-
-        //     if (vao_->hasIndexBuffer())
-        //     {
-        //         glDrawElementsInstanced(GL_TRIANGLES, static_cast<GLsizei>(indices_.size()), GL_UNSIGNED_INT, 0, count);
-        //     }
-        //     else
-        //     {
-        //         glDrawArraysInstanced(GL_TRIANGLES, 0, static_cast<GLsizei>(vertices_.size()), count);
-        //     }
-
-        //     vao_->unbind();
-        // }
-
     } // namespace Rendering
 } // namespace Graphics

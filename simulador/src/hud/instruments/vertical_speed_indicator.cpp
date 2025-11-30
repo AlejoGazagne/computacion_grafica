@@ -22,21 +22,22 @@ namespace hud
 
   bool VerticalSpeedIndicator::initializeOpenGL()
   {
-    glGenVertexArrays(1, &vao_);
-    glGenBuffers(1, &vbo_);
+    vertex_array_ = std::make_unique<Graphics::Rendering::VertexArray>();
+    
+    auto vb = std::make_unique<Graphics::Rendering::VertexBuffer>(Graphics::Rendering::BufferUsage::DYNAMIC_DRAW);
+    vertex_buffer_ = vb.get();
+    
+    vertex_array_->addVertexBuffer(std::move(vb));
+    vertex_array_->addFloatAttribute(0, 2, 2 * sizeof(float), (void *)0);
 
-    glBindVertexArray(vao_);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-    glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *)0);
-
-    glBindVertexArray(0);
     return true;
   }
 
-  void VerticalSpeedIndicator::cleanup() { clean(); }
+  void VerticalSpeedIndicator::cleanup() { 
+      vertex_array_.reset();
+      vertex_buffer_ = nullptr;
+      clean(); 
+  }
 
   void VerticalSpeedIndicator::initialize() { initializeOpenGL(); }
 
@@ -182,15 +183,17 @@ namespace hud
     drawIndicator(lines);
     drawReadout(lines);
 
-    glBindVertexArray(vao_);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+    if (vertex_array_)
+        vertex_array_->bind();
+        
+    if (vertex_buffer_ && !lines.empty())
+        vertex_buffer_->setData(lines);
+        
     if (!lines.empty())
-    {
-      glBufferData(GL_ARRAY_BUFFER, lines.size() * sizeof(float), lines.data(), GL_DYNAMIC_DRAW);
-      glDrawArrays(GL_LINES, 0, (GLsizei)(lines.size() / 2));
-    }
+        glDrawArrays(GL_LINES, 0, (GLsizei)(lines.size() / 2));
 
-    glBindVertexArray(0);
+    if (vertex_array_)
+        vertex_array_->unbind();
     glUseProgram(0);
     if (depthWasEnabled)
       glEnable(GL_DEPTH_TEST);
