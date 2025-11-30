@@ -123,7 +123,7 @@ private:
   float third_person_distance_ = 80.0f;
   float third_person_height_ = 10.0f;
 
-  // Punteros a shaders (no owned)
+  // Punteros a shaders
   Graphics::Shaders::Shader *depth_shader_ = nullptr;
 
   // Shadow Mapping System
@@ -303,7 +303,7 @@ private:
       return false;
     }
 
-    // Shader para shadow mapping (depth pass)
+    // Shader para shadow mapping
     if (!shader_manager.loadShader("depth", "shaders/depth.vert", "shaders/depth.frag"))
     {
       std::cerr << "Failed to load depth shader for shadow mapping" << std::endl;
@@ -798,25 +798,6 @@ private:
       input_state_.f_pressed = false;
     }
 
-    // R - Reset Camera
-    if (input_manager.isKeyPressed(InputManager::KEY_R))
-    {
-      if (!input_state_.r_pressed)
-      {
-        Camera *active_camera = camera_controller_->getActiveCamera();
-        if (active_camera)
-        {
-          active_camera->reset();
-          std::cout << "Camera reset" << std::endl;
-        }
-        input_state_.r_pressed = true;
-      }
-    }
-    else
-    {
-      input_state_.r_pressed = false;
-    }
-
     // E - Toggle Mouse Capture
     if (input_manager.isKeyPressed(InputManager::KEY_E))
     {
@@ -831,24 +812,6 @@ private:
     else
     {
       input_state_.e_pressed = false;
-    }
-
-    // TODO sacar reset de camara y toggle de joystick
-
-    // J - Toggle Joystick Control
-    if (input_manager.isKeyPressed(InputManager::KEY_J))
-    {
-      if (!input_state_.j_pressed)
-      {
-        bool use_js = !input_manager.isUsingJoystick();
-        input_manager.setUseJoystick(use_js);
-        std::cout << "Joystick controls " << (use_js ? "ENABLED" : "DISABLED") << std::endl;
-        input_state_.j_pressed = true;
-      }
-    }
-    else
-    {
-      input_state_.j_pressed = false;
     }
 
     // 1 - Mostrar controles
@@ -1321,7 +1284,7 @@ private:
     shader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
     if (shadow_map_)
     {
-      shadow_map_->bindForReading(GL_TEXTURE0 + 5); // Usar texture unit 5
+      shadow_map_->bindForReading(GL_TEXTURE0 + 5);
       shader->setInt("shadowMap", 5);
     }
 
@@ -1507,8 +1470,6 @@ private:
     std::cout << "4             : Increase cinematic lateral offset" << std::endl;
     std::cout << "5             : Increase cinematic height offset" << std::endl;
     std::cout << "6             : Increase cinematic max relocate distance" << std::endl;
-    std::cout << "E             : Toggle mouse capture" << std::endl;
-    std::cout << "R             : Reset camera" << std::endl;
     std::cout << "" << std::endl;
     std::cout << "GRAPHICS:" << std::endl;
     std::cout << "G             : Toggle wireframe" << std::endl;
@@ -1518,7 +1479,6 @@ private:
     std::cout << "INFO:" << std::endl;
     std::cout << "1             : Show controls" << std::endl;
     std::cout << "ESC           : Exit" << std::endl;
-    std::cout << "J             : Toggle joystick controls (Logitech Extreme 3D Pro)" << std::endl;
     std::cout << "======================================" << std::endl;
   }
 };

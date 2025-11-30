@@ -244,8 +244,6 @@ namespace Graphics
         GLint Shader::getUniformLocation(const std::string &name) const
         {
             GLint location = glGetUniformLocation(program_id_, name.c_str());
-            // No imprimir warning - es normal que algunos shaders no tengan ciertos uniforms
-            // (por ejemplo, el shader 'depth' no tiene uniforms de material)
             return location;
         }
 

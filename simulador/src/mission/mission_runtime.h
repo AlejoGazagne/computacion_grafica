@@ -47,7 +47,7 @@ namespace Mission
     int totalWaypoints = 0;
     float averageSpeed = 0.0f; // kt
     float maxAltitude = 0.0f;  // ft
-    bool perfectRun = true;    // Sin errores graves
+    bool perfectRun = true;
   };
 
   /**

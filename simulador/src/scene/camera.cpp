@@ -7,7 +7,7 @@ namespace Scene
 {
 
     // Constantes por defecto
-    const float DEFAULT_YAW = 180.0f; // Mirar hacia Z negativo (hacia el cubo)
+    const float DEFAULT_YAW = 180.0f;
     const float DEFAULT_PITCH = 0.0f;
 
     // === Implementación de Camera ===
@@ -262,7 +262,6 @@ namespace Scene
 
     void Camera::processKeyboardInput(GLFWwindow * /*window*/, float /*delta_time*/)
     {
-        // TODOS LOS CONTROLES DESHABILITADOS
         // No hay entrada de teclado para movimiento de cámara
     }
 
@@ -340,7 +339,7 @@ namespace Scene
 
     bool Camera::isPointInFrustum(const glm::vec3 &point) const
     {
-        // Implementación básica de frustum culling
+        // Implementación de frustum culling
         glm::vec4 clip_space = getViewProjectionMatrix() * glm::vec4(point, 1.0f);
 
         if (clip_space.w <= 0)

@@ -2,7 +2,9 @@
 #define WAYPOINT_INDICATOR_H
 
 #include "../../../include/hud/instrumentbase.h"
+#include "graphics/rendering/buffer_objects.h"
 #include <glm/glm.hpp>
+#include <memory>
 
 namespace hud
 {
@@ -28,7 +30,7 @@ namespace hud
      */
     WaypointIndicator(const glm::vec2 &pos, const glm::vec2 &size, Graphics::Shaders::Shader *shader);
 
-    ~WaypointIndicator() override = default;
+    ~WaypointIndicator() override;
 
     void initialize() override;
     void update(const FlightData &data) override;
@@ -45,6 +47,10 @@ namespace hud
     };
 
     NavData navData_;
+
+    // Resources
+    std::unique_ptr<Graphics::Rendering::VertexArray> vertex_array_;
+    Graphics::Rendering::VertexBuffer* vertex_buffer_;
 
     // Geometry configuration
     static constexpr float ROSE_RADIUS = 0.15f;   // Compass rose radius in NDC

@@ -329,7 +329,7 @@ namespace Graphics
                 FaceTexture face_tex;
                 face_tex.filepath = filepath;
                 face_tex.face = faces[i];
-                face_tex.flip_vertically = false; // Cubemaps normalmente no se voltean
+                face_tex.flip_vertically = false;
                 face_textures.push_back(face_tex);
             }
 

@@ -48,15 +48,6 @@ namespace Mission
       waypoints_.push_back({wp.position, wp.name, false});
     }
 
-    // Mostrar briefing corto en consola
-    std::cout << "\n========================================" << std::endl;
-    std::cout << "      🎯 " << mission.name << " 🎯" << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << "Descripción: " << mission.description << std::endl;
-    std::cout << "Waypoints: " << waypoints_.size() << " cargados" << std::endl;
-    std::cout << "Categoría: " << mission.category << std::endl;
-    std::cout << "Dificultad: " << mission.difficulty << "/5" << std::endl;
-
     if (!mission.environment.timeOfDay.empty())
     {
       std::cout << "Hora: " << mission.environment.timeOfDay << std::endl;
@@ -65,13 +56,6 @@ namespace Mission
     {
       std::cout << "Clima: " << mission.environment.weather << std::endl;
     }
-
-    std::cout << "\nControles de Misión:" << std::endl;
-    std::cout << "  N         - Activar/Desactivar waypoints" << std::endl;
-    std::cout << "  M         - Saltar waypoint actual" << std::endl;
-    std::cout << "  R         - Reiniciar misión" << std::endl;
-    std::cout << "========================================\n"
-              << std::endl;
   }
 
   void WaypointSystem::update(const glm::vec3 &planePos,

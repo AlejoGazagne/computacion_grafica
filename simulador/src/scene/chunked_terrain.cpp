@@ -44,10 +44,11 @@ void ChunkedTerrain::update(const glm::vec3 &camera_pos) {
 void ChunkedTerrain::draw() const {
     for (const auto &kv : chunks_) {
         const Chunk &c = kv.second;
-        if (c.VAO == 0 || c.index_count == 0) continue;
-        glBindVertexArray(c.VAO);
+        if (!c.vertex_array || c.index_count == 0) continue;
+        
+        c.vertex_array->bind();
         glDrawElements(GL_TRIANGLES, c.index_count, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
+        c.vertex_array->unbind();
     }
 }
 
@@ -74,36 +75,34 @@ void ChunkedTerrain::createChunk(int gx, int gz) {
     std::vector<unsigned int> indices;
     buildChunkMesh(chunk.origin.x, chunk.origin.y, vertices, indices);
 
-    // Crear buffers
-    glGenVertexArrays(1, &chunk.VAO);
-    glBindVertexArray(chunk.VAO);
+    // Crear buffers usando abstracción
+    chunk.vertex_array = std::make_unique<Graphics::Rendering::VertexArray>();
 
-    glGenBuffers(1, &chunk.VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, chunk.VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+    auto vbo = std::make_unique<Graphics::Rendering::VertexBuffer>(Graphics::Rendering::BufferUsage::STATIC_DRAW);
+    vbo->setData(vertices);
 
-    glGenBuffers(1, &chunk.EBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, chunk.EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+    auto ibo = std::make_unique<Graphics::Rendering::IndexBuffer>(Graphics::Rendering::BufferUsage::STATIC_DRAW);
+    ibo->setIndices(indices);
+
+    chunk.vertex_array->addVertexBuffer(std::move(vbo));
+    chunk.vertex_array->setIndexBuffer(std::move(ibo));
 
     // Atributos (pos 0..2, normal 3..5, uv 6..7)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-
-    glBindVertexArray(0);
+    // Posición: index 0, size 3, stride 8*float, offset 0
+    chunk.vertex_array->addFloatAttribute(0, 3, 8 * sizeof(float), (void*)0);
+    
+    // Normal: index 1, size 3, stride 8*float, offset 3*float
+    chunk.vertex_array->addFloatAttribute(1, 3, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    
+    // UV: index 2, size 2, stride 8*float, offset 6*float
+    chunk.vertex_array->addFloatAttribute(2, 2, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 
     chunk.index_count = static_cast<unsigned int>(indices.size());
     chunks_.emplace(key, std::move(chunk));
 }
 
 void ChunkedTerrain::destroyChunk(Chunk &c) {
-    if (c.VAO) glDeleteVertexArrays(1, &c.VAO);
-    if (c.VBO) glDeleteBuffers(1, &c.VBO);
-    if (c.EBO) glDeleteBuffers(1, &c.EBO);
+    c.vertex_array.reset();
     c = Chunk{};
 }
 

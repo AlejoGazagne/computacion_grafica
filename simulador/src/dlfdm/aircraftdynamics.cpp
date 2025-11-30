@@ -1,7 +1,5 @@
 #include <dlfdm/aircraftdynamics.h>
-
 #include <iostream>
-
 #include <dlfdm/tools.h>
 
 namespace dlfdm

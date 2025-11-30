@@ -34,7 +34,7 @@ namespace Graphics
                   tangent(1.0f, 0.0f, 0.0f), bitangent(0.0f, 0.0f, 1.0f), color(1.0f, 1.0f, 1.0f) {}
         };
 
-        // Estructura para datos de instancia (para instancing)
+        // Estructura para datos de instancia
         struct InstanceAttributes
         {
             glm::vec3 instance_position;

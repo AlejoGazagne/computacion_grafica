@@ -1,4 +1,3 @@
-// NEW FILE: src/scene/model.cpp
 #include "model.h"
 #include "../graphics/shaders/shader_manager.h"
 #include <iostream>

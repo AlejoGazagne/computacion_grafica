@@ -6,8 +6,10 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include "graphics/rendering/buffer_objects.h"
 
 extern "C"
 {
@@ -51,7 +53,7 @@ namespace Mission
                       bool isActive = false);
 
   private:
-    GLuint vao_ = 0, vbo_ = 0, ebo_ = 0;
+    std::unique_ptr<Graphics::Rendering::VertexArray> vertex_array_;
     Graphics::Shaders::Shader *shader_ = nullptr;
     int indexCount_ = 0;
 

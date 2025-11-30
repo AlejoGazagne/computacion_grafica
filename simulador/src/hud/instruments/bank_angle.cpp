@@ -4,10 +4,6 @@
 #include <cmath>
 #include <string>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 namespace hud
 {
 
@@ -25,25 +21,25 @@ namespace hud
 
     bool BankAngleIndicator::initializeOpenGL()
     {
-        // Crear VAO y VBO usando los del InstrumentBase
-        glGenVertexArrays(1, &vao_);
-        glGenBuffers(1, &vbo_);
+        // Usar las clases de abstracción de buffers
+        vertex_array_ = std::make_unique<Graphics::Rendering::VertexArray>();
+        
+        auto vb = std::make_unique<Graphics::Rendering::VertexBuffer>(Graphics::Rendering::BufferUsage::DYNAMIC_DRAW);
+        vertex_buffer_ = vb.get(); // Guardar referencia para actualizar datos después
+        
+        // Transferir propiedad del VBO al VAO
+        vertex_array_->addVertexBuffer(std::move(vb));
+        
+        // Configurar atributo de posición (índice 0, 2 floats)
+        vertex_array_->addFloatAttribute(0, 2, 2 * sizeof(float), (void *)0);
 
-        glBindVertexArray(vao_);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-        // Reservar buffer vacío inicial
-        glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
-
-        // Configurar atributo de posición
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *)0);
-
-        glBindVertexArray(0);
         return true;
     }
 
     void BankAngleIndicator::cleanup()
     {
+        vertex_array_.reset();
+        vertex_buffer_ = nullptr;
         clean(); // usa clean_instrument + clean_buffers del base
     }
 
@@ -87,7 +83,9 @@ namespace hud
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         shader->use();
-        glBindVertexArray(vao_);
+        
+        if (vertex_array_)
+            vertex_array_->bind();
 
         // Color del indicador (verde para las marcas)
         shader->setVec3("color", 0.0f, 1.0f, 0.0f);
@@ -141,8 +139,8 @@ namespace hud
                     line_x, line_y - mark_height / 2,
                     line_x, line_y + mark_height / 2};
 
-                glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-                glBufferData(GL_ARRAY_BUFFER, mark.size() * sizeof(float), mark.data(), GL_DYNAMIC_DRAW);
+                if (vertex_buffer_)
+                    vertex_buffer_->setData(mark);
                 glDrawArrays(GL_LINES, 0, 2);
 
                 // Mostrar texto de grados cada 20° (múltiplos de 2 líneas de 10°)
@@ -156,9 +154,8 @@ namespace hud
 
                     if (!text_vertices.empty())
                     {
-                        glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-                        glBufferData(GL_ARRAY_BUFFER, text_vertices.size() * sizeof(float),
-                                     text_vertices.data(), GL_DYNAMIC_DRAW);
+                        if (vertex_buffer_)
+                            vertex_buffer_->setData(text_vertices);
                         glDrawArrays(GL_LINES, 0, text_vertices.size() / 2);
                     }
                 }
@@ -193,12 +190,13 @@ namespace hud
             base_x2, base_y2  // Base derecha
         };
 
-        glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-        glBufferData(GL_ARRAY_BUFFER, needle.size() * sizeof(float), needle.data(), GL_DYNAMIC_DRAW);
+        if (vertex_buffer_)
+            vertex_buffer_->setData(needle);
         glDrawArrays(GL_LINE_LOOP, 0, 3); // Triángulo hueco usando LINE_LOOP
 
         // Restaurar estado OpenGL
-        glBindVertexArray(0);
+        if (vertex_array_)
+            vertex_array_->unbind();
         glUseProgram(0);
         if (depthWasEnabled)
             glEnable(GL_DEPTH_TEST);
@@ -212,8 +210,3 @@ namespace hud
     }
 
 } // namespace hud
-
-/*
-En realidad los parametros de vuelo, como el angulo de bank van a venir de otro lado no van a ser tomados de la cámara
-no se como se van a tomar
-*/

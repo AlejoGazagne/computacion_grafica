@@ -12,7 +12,7 @@ namespace Graphics
     /**
      * @brief Clase que maneja el Shadow Mapping (Depth Map)
      *
-     * Basado en la técnica de Shadow Mapping vista en teoría:
+     * Basado en la técnica de Shadow Mapping:
      * 1. Renderizar la escena desde la perspectiva de la luz a un depth buffer
      * 2. Usar ese depth buffer como textura para determinar qué píxeles están en sombra
      *

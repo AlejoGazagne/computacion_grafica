@@ -66,13 +66,13 @@ namespace Graphics
             /**
              * @brief Calcula la matriz lightSpaceMatrix para shadow mapping
              *
-             * Basado en la teoría de transformaciones de OpenGL:
+             * Transformaciones de OpenGL:
              * lightSpaceMatrix = Projection * View
              *
              * - View: lookAt desde la posición de la luz mirando en su dirección
              * - Projection: Ortográfica (luces direccionales son paralelas)
              *
-             * @param target_position Posición del objeto a seguir (ej: avión)
+             * @param target_position Posición del objeto a seguir el avión
              * @return Matriz que transforma de world space a light clip space
              */
             glm::mat4 getLightSpaceMatrix(const glm::vec3 &target_position) const

@@ -1,4 +1,3 @@
-// NEW FILE: src/utils/model_loader.cpp
 #include "model_loader.h"
 #include "../scene/mesh.h"
 #include <assimp/Importer.hpp>
@@ -89,13 +88,13 @@ namespace Utils
     {
       Graphics::Rendering::Vertex vertex;
 
-      // Posición (centrada restando el offset) - Intercambiando X y Z
+      // Posición (centrada restando el offset)
       vertex.position = glm::vec3(
           mesh->mVertices[i].z - center_offset.z,  // X <- Z
           mesh->mVertices[i].y - center_offset.y,  // Y <- Y
           mesh->mVertices[i].x - center_offset.x); // Z <- X
 
-      // Normales - Intercambiando X y Z
+      // Normales 
       if (mesh->HasNormals())
       {
         vertex.normal = glm::vec3(
@@ -120,7 +119,7 @@ namespace Utils
         vertex.texture_coords = glm::vec2(0.0f, 0.0f);
       }
 
-      // Tangentes - Intercambiando X y Z
+      // Tangentes
       if (mesh->HasTangentsAndBitangents())
       {
         vertex.tangent = glm::vec3(
@@ -135,8 +134,8 @@ namespace Utils
       }
       else
       {
-        vertex.tangent = glm::vec3(0.0f, 0.0f, 1.0f);   // Ajustado para nuevo sistema
-        vertex.bitangent = glm::vec3(1.0f, 0.0f, 0.0f); // Ajustado para nuevo sistema
+        vertex.tangent = glm::vec3(0.0f, 0.0f, 1.0f);
+        vertex.bitangent = glm::vec3(1.0f, 0.0f, 0.0f);
       }
 
       // Color del vértice (blanco por defecto)
@@ -187,7 +186,7 @@ namespace Utils
 
       for (unsigned int i = 0; i < mesh->mNumVertices; i++)
       {
-        // Intercambiar X y Z al calcular el centro
+        // Calcular el centro
         glm::vec3 pos(mesh->mVertices[i].z, mesh->mVertices[i].y, mesh->mVertices[i].x);
 
         min_bounds.x = std::min(min_bounds.x, pos.x);
