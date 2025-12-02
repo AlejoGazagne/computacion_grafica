@@ -36,7 +36,7 @@ private:
 public:
     /**
      * @brief Constructor que inicializa la tabla de permutación
-     * @param seed Semilla para generación aleatoria (opcional)
+     * @param seed Semilla para generación aleatoria
      */
     PerlinNoise(unsigned int seed = 237) {
         permutation_.resize(512);
