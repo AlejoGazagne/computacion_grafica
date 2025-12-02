@@ -21,12 +21,17 @@ namespace hud
 
   bool Altimeter::initializeOpenGL()
   {
+    // 1. Se crea el VAO (Vertex Array Object) usando un puntero inteligente
     vertex_array_ = std::make_unique<Graphics::Rendering::VertexArray>();
     
+    // 2. Se crea el VBO (Vertex Buffer Object)
+    // Se usa DYNAMIC_DRAW porque los datos cambiarán en cada frame (la cinta se mueve)
     auto vb = std::make_unique<Graphics::Rendering::VertexBuffer>(Graphics::Rendering::BufferUsage::DYNAMIC_DRAW);
+    // 3. Se guarda una referencia cruda para poder actualizarlo luego en render()
     vertex_buffer_ = vb.get();
-    
+    // 4. Se transfiere la propiedad del VBO al VAO
     vertex_array_->addVertexBuffer(std::move(vb));
+    // 5. Se define el layout: "El atributo 0 son 2 floats (X, Y)"
     vertex_array_->addFloatAttribute(0, 2, 2 * sizeof(float), (void *)0);
 
     return true;
